@@ -12,7 +12,7 @@ function [ dataMean, dataSigma, dataOut ] = GrubbsTestForOutliers (dataIn, dataW
 	nVarArgout = nargout;
 	assert (nArgsIn == 3, 'GrubbsTestForOutliers: args: data, weights, alpha.');
 
-	disp 'Entering GrubbsTestForOutliers'
+% 	disp 'Entering GrubbsTestForOutliers'
 	dataOut = dataIn;
 
 	while 1

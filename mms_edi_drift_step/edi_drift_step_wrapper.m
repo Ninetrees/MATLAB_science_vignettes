@@ -1,5 +1,10 @@
-% edi_drift_step using beam convergence, v0101 (show also on plots)
-
+% edi_drift_step using beam convergence, v1.02 (show also on plots)
+%
+% v0102: use CDF files for EDI, B, and EDP data
+%        apply plot style during save
+%        include obsID on plots
+%        include local copies of myLibAppConstants, myLibScienceConstants
+%        changed references to Cluster data
 % v0101: update plot: sample datetime, selected confidence, legend
 %        implement weighted mean: sin^2
 %        tested with 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
@@ -13,89 +18,102 @@ format compact
 format short g  % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 
-edi_drift_step_read_ql__EDI__B__data % Get all the data from (ex.) mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf
+global dotVersion; dotVersion = 'v1.02';
+
+% Get all the data from (ex.) 
+% 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
+% 'mms2_edp_comm_ql_dce2d_20150509000000_v0.0.0.cdf'
+edi_drift_step_read_ql__EDI__B__EDP_data
+
+nB_recs        = length (B_datenum);
+driftStep      = zeros (3, nB_recs);
+driftStepSigma = zeros (3, nB_recs);
+driftVelocity  = zeros (3, nB_recs);
+drift_E        = zeros (3, nB_recs);
 
 % for each B interval, there are EDI records indexed to B ~ many EDI:1 B
 % Here we look at each B record, find the corresponding EDI records, and filter.
-for igdxx = 1: length (edi_B_dmpa)
 disp 'looping over edi_B_dmpa'
-	B_dmpa   = edi_B_dmpa      (1:3,igdxx);
+for igdxx = 1: length (edi_B_dmpa)
+	B_dmpa   = edi_B_dmpa (1:3,igdxx);
 	if ~isnan (B_dmpa (1))
 
 		% B field data
-		B_tt2000 = edi_BdvE_tt2000 (    igdxx);
+		B_tt2000 = edi_BdvE_tt2000 (igdxx);
 
 		% GDU data that corresponds to the B field data: position and firing vectors
 		% Includes both GDUs
-		iigd12_b_avgIntrp     = find (edi_gd_B_index == igdxx);
-
-		gd_virtual_dmpa       = edi_gd_virtual_dmpa (:, iigd12_b_avgIntrp);
-		gd_fv_dmpa            = edi_gd_fv_dmpa      (:, iigd12_b_avgIntrp);
-		gd_ID                 = edi_gd_ID           (:, iigd12_b_avgIntrp);
+		iigdxx_gd_EQ_B = find (edi_gd_B_index == igdxx-1);
 
 		% keyboard
-		if (length (gd_virtual_dmpa) > 2)
-			E_dmpa (:, igdxx) = edi_drift_step ( ...
+		if (length (iigdxx_gd_EQ_B) > 2) % More than 2 beams
+
+			gd_virtual_dmpa   = edi_gd_virtual_dmpa (:, iigdxx_gd_EQ_B);
+			gd_fv_dmpa        = edi_gd_fv_dmpa      (:, iigdxx_gd_EQ_B);
+			gd_ID             = edi_gd_ID           (:, iigdxx_gd_EQ_B);
+
+			[ driftStep(:, igdxx), ...
+			  driftStepSigma(:, igdxx), ...
+			  driftVelocity(:, igdxx), ...
+			  drift_E(:, igdxx) ] = edi_drift_step ( ...
 				B_tt2000, ...
 				B_dmpa, ...
 				gd_virtual_dmpa, ...
 				gd_fv_dmpa, ...
+				obsID, ...
 				gd_ID );
 		else
-			E_dmpa (:, igdxx) = [ NaN; NaN; NaN ];
+			drift_E (:, igdxx) = [ NaN; NaN; NaN ];
 		end
 
 	end
 end
-save 'E_dmpa_v0101.mat' E_dmpa
 
-%{
-edp_tt2000 = edp_ql.tt2000; % Epoch times
-e_dsl      = edp_ql.e_dsl;  % Electric field in DSL coordinates (DSL ~= DMPA)
+[ hAxis hEDP_dce_xyz_dsl hEDI_B ] = plotyy ( ...
+	edp_datenum, edp_dce_xyz_dsl(:, 1:2), ...
+	B_datenum, edi_B_dmpa (1:3, :)', @plot, @plot );
+% [ hAxis ] = plot ( ...
+% 	edp_datenum, edp_dce_xyz_dsl(:, 1:2));
 
-edp_epoch  = double (edp_tt2000) * 1e-9; % ~> sec
-bAvg_epoch = double (b_avg.t_avg) * 1e-9;
-[ datestr(spdftt2000todatenum(edp_tt2000(1)), 'yyyy-mm-dd HH:MM:ss'), ' ',...
-  datestr(spdftt2000todatenum(edp_tt2000(end)), 'yyyy-mm-dd HH:MM:ss') ]
-edp_datenum  = spdftt2000todatenum(edp_tt2000');
-bAvg_datenum = spdftt2000todatenum(b_avg.t_avg');
-
-[ hAxis hE_dsl hB_avg ] = plotyy ( ...
-	edp_datenum, e_dsl(1:2,:)', ...
-	bAvg_datenum, b_avg.b_avg (1:3,:)' );
+plotDateMin = double (min (min(edp_datenum), min(B_datenum)));
+plotDateMax = double (max (max(edp_datenum), max(B_datenum)));
 
 datenumOneMin = 0.0006944444496185;
-xlim ( [ datenum('2015-05-06 15:30:00') datenum('2015-05-06 15:35:00') ] )
- set (gca, 'XTick', [datenum('2015-05-06 15:30:00'): datenumOneMin: datenum('2015-05-06 15:35:00')])
+datenumOneHr  = 60.0 * datenumOneMin;
+% xlim ( [ B_datenum(1) B_datenum(end) ] )
+% set (gca, 'XTick', [B_datenum(1): datenumOneHr: B_datenum(end)])
+xlim ( [ plotDateMin plotDateMax ] )
+set (gca, 'XTick', [ plotDateMin: datenumOneHr: plotDateMax]) % debug?
 
-datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
+datetick ('x', 'HH:MM', 'keeplimits', 'keepticks') % debug?
 
 set (hAxis(2), 'XTick', [])
 
 hold on
-% set (hB_avg, 'Color', [ MMS_plotColorx, MMS_plotColory, MMS_plotColorz ]);
-set (hB_avg(1), 'Color', MMS_plotColorx);
-set (hB_avg(2), 'Color', MMS_plotColory);
-set (hB_avg(3), 'Color', MMS_plotColorz);
+% set (hEDI_B, 'Color', [ MMS_plotColorx, MMS_plotColory, MMS_plotColorz ]);
+set (hEDI_B(1), 'Color', MMS_plotColorx);
+set (hEDI_B(2), 'Color', MMS_plotColory);
+set (hEDI_B(3), 'Color', MMS_plotColorz);
 
-plot (bAvg_datenum, E_dmpa (1,:), ...
-	'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', MMS_plotColorx, 'MarkerEdgeColor', MMS_plotColorx, 'MarkerSize', 5.0);
+hDrift_Ex = plot (B_datenum, drift_E (1,:), ...
+	'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', 'b', 'MarkerEdgeColor', MMS_plotColorx, 'MarkerSize', 5.0);
 % datetick ()
 
-plot (bAvg_datenum, E_dmpa (2,:), ...
-	'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', MMS_plotColory, 'MarkerEdgeColor', MMS_plotColory, 'MarkerSize', 5.0);
+hDrift_Ey = plot (B_datenum, drift_E (2,:), ...
+	'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', myDarkGreen, 'MarkerEdgeColor', MMS_plotColory, 'MarkerSize', 5.0);
 % datetick ()
 title 'SDP 2D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'
 xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_tt2000(1)), 'yyyy-mm-dd') ))
 ylabel (hAxis (1),'mV-m^-^1')
 ylabel (hAxis (2),'nT')
-legend ('E_x SDP', 'E_y SDP', 'E_x EDI', 'E_y EDI', 'B_x', 'B_y', 'B_z' );
+% legend ('E_x SDP', 'E_y SDP', 'E_x EDI', 'E_y EDI', 'B_x', 'B_y', 'B_z' );
+legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'B_x', 'B_y', 'B_z' );
 
 hold off
-%}
+
 
 % b_avg_tt2000 = b_avg.t_avg; % MATLAB does not save structure.variables
-% save 'mms4_edi_slow_l1a_efield_20150506_SDP_and_EDI_driftstep_E_field_2D.mat' edp_tt2000 e_dsl b_avg_tt2000 E_dmpa
+% save 'mms4_edi_slow_l1a_efield_20150506_SDP_and_EDI_driftstep_E_field_2D.mat' edp_tt2000 edp_dce_xyz_dsl b_avg_tt2000 drift_E
 % load 'mms4_edi_slow_l1a_efield_20150506_SDP_and_EDI_driftstep_E_field_2D.mat'
 
 %{
@@ -129,6 +147,6 @@ b_dmpa    = fg_ql.b_dmpa;       % Magnetic field
 
 % EDP Data
 edp_tt2000 = edp_ql.tt2000;     % Epoch times
-e_dsl      = edp_ql.e_dsl;      % Electric field in DSL coordinates (DSL ~= DMPA)
+edp_dce_xyz_dsl      = edp_ql.edp_dce_xyz_dsl;      % Electric field in DSL coordinates (DSL ~= DMPA)
 
 %}

@@ -2,14 +2,17 @@
 %
 %
 
-function E_dmpa = edi_drift_step ( ...
-				B_tt2000, ...
-				B_dmpa, ...
-				gd_virtual_dmpa, ...
-				gd_fv_dmpa, ...
-				gd_ID );
-disp 'Entering edi_drift_step'
-	common_science_constants
+function [ driftStep driftStepSigma driftVelocity drift_E ] = ...
+	edi_drift_step ( ...
+		B_tt2000, ...
+		B_dmpa, ...
+		gd_virtual_dmpa, ...
+		gd_fv_dmpa, ...
+		obsID, ...
+		gd_ID );
+
+% 	disp 'Entering edi_drift_step'
+	myLibScienceConstants
 	plot_edi_drift_step = true;
 
 	% I3   =  [ 1 0 0 ;  0 1 0 ; 0 0 1 ];
@@ -66,6 +69,11 @@ disp 'Entering edi_drift_step'
 	nBeamIntercepts  = (nBeams-1) * nBeams / 2;
 	beamIntercepts   = zeros (2, nBeamIntercepts, 'double');
 	interceptWeights = zeros (1, nBeamIntercepts, 'double');
+
+	driftStep      = [NaN; NaN; NaN];
+	driftStepSigma = [NaN; NaN; NaN];
+	driftVelocity  = [NaN; NaN; NaN];
+	drift_E        = [NaN; NaN; NaN];
 
 	nBeamIntercepts  = 0;
 	if nBeams > 3
@@ -126,8 +134,6 @@ disp 'Entering edi_drift_step'
 				nGrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptStdDev) )
 
 			% -~-~-~-~-~-~-~-~-~
-			% -~-~-~-~-~-~-~-~-~
-			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
 			driftStep_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
 			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
@@ -138,14 +144,15 @@ disp 'Entering edi_drift_step'
 			% 	E_bpp = cross ( (driftStep * B2n*B2n / gyroPeriod), B_bpp) / B2n*B2n;
 			%OR
 			E_bpp = cross ( (driftStep_bpp          / gyroPeriod), B_bpp*1.0e-9); % B_bpp is in nT, and all these calcs are in SI
-			E_dmpa = (DMPA2BPP' * E_bpp);
-			E_dmpa = E_dmpa * 1.0e3; % convert V/m -> mV/m... later, try to combine scaling into constant
-			% -~-~-~-~-~-~-~-~-~
-			% -~-~-~-~-~-~-~-~-~
-			% -~-~-~-~-~-~-~-~-~
+			driftStep      = (DMPA2BPP' * driftStep_bpp);
+			driftStepSigma = (DMPA2BPP' * [GrubbsBeamInterceptStdDev; 0.0]);
+			driftVelocity  = driftStep * gyroPeriod;
+			drift_E        = (DMPA2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
 
+			% -~-~-~-~-~-~-~-~-~
 			if plot_edi_drift_step
 				edi_drift_step_plot ( ...
+					obsID, ...
 					B_tt2000, ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
@@ -153,10 +160,6 @@ disp 'Entering edi_drift_step'
 					GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
 					P0);
 			end
-		else
-			E_dmpa = [NaN; NaN; NaN];
 		end
-	else
-		E_dmpa = [NaN; NaN; NaN];
 	end
 end

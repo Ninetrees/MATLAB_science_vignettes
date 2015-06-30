@@ -1,18 +1,17 @@
 function [] = edi_drift_step_plot ( ...
+	obsID, ...
 	B_tt2000, ...
 	gd_virtual_bpp, ...
 	gd_fv_bpp, ...
 	DMPA2BPP, ...
 	GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
 	P0);
-% 	ConfidenceBounds);
 
 	myLibAppConstants % custom colors; set default axis colors
 	cPathSep = pathsep;
 	cFileSep = filesep;
-	disp 'plotting...'
-% keyboard
-	% if it doesn't exist, create it
+	global dotVersion
+
 	hBPP_figure = figure ('Position', [ 400   150   850   800 ]);
 	set (hBPP_figure, 'WindowStyle', 'normal')
 	set (hBPP_figure, 'DockControls', 'off')
@@ -126,20 +125,128 @@ function [] = edi_drift_step_plot ( ...
 	nBeamIntercepts = length (GrubbsBeamIntercepts);
 	bTimeStr = datestr (spdftt2000todatenum (B_tt2000), 'yyyy-mm-dd HH:MM:ss');
 	title ( { ...
-		[ 'EDI drift step using beam convergence, v0101'];
-		[ 'BPP: B (UTC): ', bTimeStr, ', P_{0} = ', num2str(P0, 3), ' Points = ', num2str(nBeamIntercepts) ];
+		[ 'EDI drift step using beam convergence, ', dotVersion, ', BPP'];
+		[ 'MMS', obsID, ': B (UTC): ', bTimeStr, ', P_{0} = ', num2str(P0, 3), ' Points = ', num2str(nBeamIntercepts) ];
 		[ '~> click plot to advance...'];
 		[] }, 'Fontname', 'Times');
 
-	% mms4_edi_slow_l1a_efield_20150506_SDP__EDI_2D_driftstep_E_field__B_avg_3Dd
-	disp 'saving plot...'
+	% Example: 'mms4_edi_slow_l1a_efield_20150506_SDP__EDI_2D_driftstep_E_field__B_avg_3Dd'
 	SavePlotFilename = [ ...
-		'.' cFileSep 'mms2_edi_', ...
+		'.' cFileSep 'mms', obsID, '_edi_', ...
 		bTimeStr(1:4) bTimeStr(6:7) bTimeStr(9:10) '_drift_E__SDP__Bavg_', ...
 		bTimeStr(12:13) bTimeStr(15:16) bTimeStr(18:19), ...
-		];
-	saveas (hBPP_figure, [ SavePlotFilename, '-v0101a.png' ], 'png');
+		'-', dotVersion, 'a.png' ];
+	hgexport (gcf, SavePlotFilename, EDI_presentation_beam_plot_style);
+
+% 	saveas (hBPP_figure, [ SavePlotFilename, '-v0101a.png' ], 'png');
+% keyboard
 
 % 	dummy = waitforbuttonpress;
 	close (hBPP_figure);
 end
+
+% 00 - default
+% 01 - Expand axes to fill figure - clips badly - NO
+% 02 - Custom color = w for white frame
+% 03a- Auto
+% 03b- 600 dpi
+% 04a- auto, painters
+% 04b- a600 dpi, painters, not much change from 03a,b
+% 05a- screen ?= auto
+% 06 - 300 looks as good as 600
+% 07 - lines >= 1 point - good
+% 08 - lines, scale, min 1 point, - good
+% assume your style sheet's name is <foo.txt>
+%{
+% create a fig
+     plot(1:10);
+     fnam='your_fig.png'; % your file name
+% the engine
+% ...get style sheet info
+     snam='foo'; % note: NO extension...
+     s=hgexport('readstyle',snam);
+% ...apply style sheet info
+     hgexport(gcf,fnam,s);
+
+
+% create an example fig that we want to format with style file 'foo'
+ plot(rand(14,10));
+
+ % get style sheet info
+ snam='foo'; % The name of your style file (NO extension)
+ s = hgexport ('readstyle',snam);
+
+ %apply style sheet info
+ fnam='myfig.jpeg'; % your file name
+ s.Format = 'jpeg'; %I needed this to make it work but maybe you wont.
+ hgexport (gcf, fnam, s);
+
+if you just want to apply the style to the figure itself,
+the matlab-command hgexport(gcf,'temp_dummy','mystyle','applystyle', true);
+
+s = hgexport ('readstyle','EDI beam plots')
+s =
+            Version: '1'
+             Format: 'eps'
+            Preview: 'none'
+              Width: 'auto'
+             Height: 'auto'
+              Units: 'inches'
+              Color: 'rgb'
+         Background: 'w'
+      FixedFontSize: '10'
+     ScaledFontSize: 'auto'
+           FontMode: 'scaled'
+        FontSizeMin: '8'
+     FixedLineWidth: '1'
+    ScaledLineWidth: 'auto'
+           LineMode: 'scaled'
+       LineWidthMin: '1'
+           FontName: 'auto'
+         FontWeight: 'auto'
+          FontAngle: 'auto'
+       FontEncoding: 'latin1'
+            PSLevel: '2'
+           Renderer: 'painters'
+         Resolution: '300'
+       LineStyleMap: 'none'
+         ApplyStyle: '0'
+             Bounds: 'loose'
+           LockAxes: 'on'
+      LockAxesTicks: 'off'
+             ShowUI: 'on'
+       SeparateText: 'off'
+
+s = hgexport ('readstyle','EDI presentation beam plots')
+EDI_presentation_beam_plot_style =
+            Version: '1'
+             Format: 'eps'
+            Preview: 'none'
+              Width: 'auto'
+             Height: 'auto'
+              Units: 'inches'
+              Color: 'rgb'
+         Background: 'w'
+      FixedFontSize: '10'
+     ScaledFontSize: 'auto'
+           FontMode: 'scaled'
+        FontSizeMin: '8'
+     FixedLineWidth: '1'
+    ScaledLineWidth: 'auto'
+           LineMode: 'fixed'
+       LineWidthMin: '1'
+           FontName: 'auto'
+         FontWeight: 'auto'
+          FontAngle: 'auto'
+       FontEncoding: 'latin1'
+            PSLevel: '2'
+           Renderer: 'painters'
+         Resolution: '300'
+       LineStyleMap: 'none'
+         ApplyStyle: '0'
+             Bounds: 'loose'
+           LockAxes: 'on'
+      LockAxesTicks: 'on'
+             ShowUI: 'on'
+       SeparateText: 'off'
+%}
