@@ -2,36 +2,47 @@
 %
 %
 
-function [ driftStep dUncertainty driftVelocity drift_E ] = ...
-	edi_drift_step ( ...
-		B_tt2000, ...
-		B_dmpa, ...
-		gd_virtual_dmpa, ...
-		gd_fv_dmpa, ...
-		obsID, ...
-		gd_ID );
+function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
+	B_tt2000, ...
+	B_dmpa, ...
+	gd_virtual_dmpa, ...
+	gd_fv_dmpa, ...
+	obsID, ...
+	gd_ID );
 
 	% disp 'Entering edi_drift_step'
 	myLibScienceConstants
-	global plot_beams
+	global plot_beams rotation_method
 
-	% I3   =  [ 1 0 0 ;  0 1 0 ; 0 0 1 ];
 	B2n  = norm (B_dmpa, 2);
 	Bu   = B_dmpa / B2n;
-	% 	OCSz = [ 0.0; 0.0; 1.0 ];
-	% 	r    = cross (OCSz, Bu); % rotate OCSz to B
-	% 	rx   = [ ...
-	% 		  0.0  r(3) -r(2);
-	% 		-r(3)   0.0  r(1);
-	% 		 r(2) -r(1)   0.0 ];
-	% 	cosTheta = Bu (3); % dot (Bu, OCSz): ||OCSz|| = ||Bu|| = 1; % Always Bu (3)
-	% 	DMPA2BPP  = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2));
 
-	DMPA2BPPy = [ 0.0; 1.0; 0.0 ];
-	DMPA2BPPx = cross (DMPA2BPPy, Bu);
-	DMPA2BPPx = DMPA2BPPx / norm (DMPA2BPPx, 2);
-	DMPA2BPPy = cross (Bu, DMPA2BPPx);
-	DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ];
+	switch rotation_method
+		% Method 1 ________________________________________________________________
+		case 1
+			I3    =  [ 1 0 0 ;  0 1 0 ; 0 0 1 ];
+			DMPAz = [ 0.0; 0.0; 1.0 ];
+			r     = cross (DMPAz, Bu); % rotate DMPAz to B
+			rx    = [ ...
+			   0.0   r(3) -r(2);
+				-r(3)  0.0   r(1);
+				 r(2) -r(1)  0.0 ];
+			cosTheta = Bu (3); % dot (Bu, DMPAz): ||OCSz|| = ||Bu|| = 1; % Always Bu (3)
+			DMPA2BPP  = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2));
+
+		% Method 2 ________________________________________________________________
+		case 2
+			DMPA2BPPy = [ 0.0; 1.0; 0.0 ];
+			DMPA2BPPx = cross (DMPA2BPPy, Bu);
+			DMPA2BPPx = DMPA2BPPx / norm (DMPA2BPPx, 2);
+			DMPA2BPPy = cross (Bu, DMPA2BPPx);
+			DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ];
+
+		% Method 3 ________________________________________________________________
+		case 3
+			disp ' not implemented yet'
+			keyboard
+	end % switch
 
 	B_bpp = DMPA2BPP * B_dmpa;
 	% OR
@@ -134,16 +145,19 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = ...
 			driftStep_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
 			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
 			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
-			% driftStep * B^2 / gyroPeriod = E_bpp x B_bpp =>
-			% 	E_bpp = cross ( (driftStep * B2n*B2n / gyroPeriod), B_bpp) / dot (B_bpp, B_bpp);
-			%OR
-			% 	E_bpp = cross ( (driftStep * B2n*B2n / gyroPeriod), B_bpp) / B2n*B2n;
-			%OR
-			E_bpp = cross ( (driftStep_bpp          / gyroPeriod), B_bpp*1.0e-9); % B_bpp is in nT, and all these calcs are in SI
+
+			% vE = v in direction of E; T = gyroPeriod
+			% ( vE = d/T ) = ExB/|B|^2 ~> d / T * |B|^2 = ExB --- Pacshmann, 1998, 2001, EDI for Cluster
+			% Cross from the left with B: B x [] = BxExB
+			% where BxExB = E(B dot B) - B(E dot B)
+			% The second term is zero because we are assuming E is perpendicular to B.
+			% B x [ d/T * |B|^2 = E * |B|^2 ~> E = B x d/T
+
+			E_bpp = cross (B_bpp, driftStep_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
 			driftStep     = DMPA2BPP' * driftStep_bpp;
 			dUncertainty  = [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0];
 			% Possible future? dUncertainty  = (DMPA2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
-			driftVelocity = driftStep * gyroPeriod;
+			driftVelocity = driftStep / gyroPeriod;
 			drift_E       = (DMPA2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
 
 			% -~-~-~-~-~-~-~-~-~
@@ -151,6 +165,7 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = ...
 				edi_drift_step_plot ( ...
 					obsID, ...
 					B_tt2000, ...
+					gd_ID, ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
 					B_dmpa, ...
