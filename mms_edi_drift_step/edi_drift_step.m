@@ -2,17 +2,18 @@
 %
 %
 
-function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
+function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_step ( ...
+	obsID, ...
 	B_tt2000, ...
 	B_dmpa, ...
 	gd_virtual_dmpa, ...
 	gd_fv_dmpa, ...
-	obsID, ...
 	gd_ID );
 
-	% disp 'Entering edi_drift_step'
 	myLibScienceConstants
-	global plot_beams rotation_method
+	quarterPi = pi / 4.0;
+	global plot_beams rotation_method use_v10502
+% 	disp 'entering edi_drift_step'
 
 	B2n  = norm (B_dmpa, 2);
 	Bu   = B_dmpa / B2n;
@@ -39,8 +40,8 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 			DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ];
 
 		% Method 3 ________________________________________________________________
-		case 3
-			disp ' not implemented yet'
+		otherwise
+			disp 'rotation method not implemented yet'
 			keyboard
 	end % switch
 
@@ -63,8 +64,8 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 	% slope and y-intercept. After processing all the beams, we'll calculate the intersections.
 	% y = mx + b => m = dy/dx =; b = y - m*x, where x,y = GDU pos
 
-	gd_m_bpp = zeros (1, length (gd_virtual_dmpa), 'double');
-	gd_b_bpp = zeros (1, length (gd_virtual_dmpa), 'double');
+	gd_m_bpp = zeros (1, size (gd_virtual_dmpa, 2), 'double');
+	gd_b_bpp = zeros (1, size (gd_virtual_dmpa, 2), 'double');
 
 	% -~-~-~-~-~-~-~-~-~
 	% A gd12 beam originates in gun 1 and is detected in det 2.
@@ -72,6 +73,30 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 	gd_m_bpp = gd_fv_bpp (2,:) ./ gd_fv_bpp (1,:);
 	gd_b_bpp = gd_virtual_bpp (2,:) - gd_m_bpp.* gd_virtual_bpp (1,:);
 
+	% v1.05.xx, new calc: find beams that are parallel within 4° (slope ~0.07)
+	% This REMOVES beams that are nearly parallel
+	if use_v10502
+		iParallel = [0];
+		while ~isempty (iParallel)
+			gd_m_bpp_deg = atand (gd_m_bpp);
+			[gd_m_bpp_sorted, igd_m_bpp_sorted] = sort (gd_m_bpp_deg);
+			[gd_m_bpp_sorted; gd_m_bpp_deg(igd_m_bpp_sorted)];
+			gd_m_bpp_diff = abs (diff (gd_m_bpp_sorted));
+			iParallel = find (gd_m_bpp_diff < 4);
+		
+			if ~isempty (iParallel)
+				disp ( sprintf ('n iParallel: %2d of %2d\n', length(iParallel), length(gd_m_bpp)) )
+				gd_m_bpp (igd_m_bpp_sorted (iParallel)) = [];
+				gd_b_bpp (igd_m_bpp_sorted (iParallel)) = [];
+				gd_virtual_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
+				gd_fv_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
+				gd_ID (igd_m_bpp_sorted (iParallel)) = [];
+				gd_virtual_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
+				gd_fv_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
+			end
+		end
+	end
+% keyboard
 	% Find the target in BPP, using BPP FV convergence
 	% preAlloc beamIntercepts based on nBeams: (nBeams - 1) * nBeams / 2
 	% -~-~-~-~-~-~-~-~-~
@@ -86,7 +111,9 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 	drift_E       = [NaN; NaN; NaN];
 
 	nBeamIntercepts  = 0;
-	if nBeams > 3
+	dsQuality = 0;
+	if nBeams > 1 % can't have an intersection with just 1 beam
+		% find the slpe and y-intercept for all beams
 		for i = 1: nBeams-1
 			for j = i+1: nBeams
 				XY = [ ...
@@ -98,7 +125,13 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 			end
 		end
 
-		macroBeamCheckAngle = atan(tand(5)); % Beams closer than 5° get less intersection weight
+		% Not determined as of v10501 is what angles really get what weight
+		% We tested sin^2, and got some satisfaction, but we really want to let most beams
+		% count, and sharply penalize beams that intersect at small angles
+		% changed to sin^4
+		% The check for macroBeamCheckAngle removes intercepts from CALCS if the
+		% intercept angle is less than macroBeamCheckAngle.
+		macroBeamCheckAngle = atan(tand(5));
 		nBeamIntercepts = 0.0;
 		for i = 1: nBeams-1
 			for j = i+1: nBeams
@@ -108,20 +141,33 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 					(gd_m_bpp(j) - gd_m_bpp(i)) / ...
 					(1.0 + gd_m_bpp(i) * gd_m_bpp(j)) );
 
-				if (abs (interceptAngle (nBeamIntercepts)) > macroBeamCheckAngle)
-					interceptWeights (1, nBeamIntercepts) = sin (interceptAngle (nBeamIntercepts))^2;
-				else
-					interceptWeights (1, nBeamIntercepts) = NaN;
-				end
+% 				if (abs (interceptAngle (nBeamIntercepts)) > macroBeamCheckAngle) % v1.05.01
+					interceptWeights (1, nBeamIntercepts) = sin (interceptAngle (nBeamIntercepts))^4;
+% 				else
+% 					interceptWeights (1, nBeamIntercepts) = NaN;
+% 				end
 			end
 		end
 
-		if nansum (interceptWeights) > 0.0
+% 	iParallel = find (gd_m_bpp_diff < 0.07);
+% 	gd_m_bpp (igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_b_bpp (igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_virtual_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_fv_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_ID (igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_virtual_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
+% 	gd_fv_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
+
+		% This test is only valid if NaN is implements above;
+		% otherwise, this is always true.
+		interceptWeightsSum = nansum (interceptWeights);
+		if interceptWeightsSum > 0.0
 			% We will check the upper bound, P0=84%, alpha=P1=0.16 ~> +- 0.08 (lower|upper),
 			% so div by 2.0, and pass just the upper bound.
 			P0 = 0.84;
 			edi_stats_alpha = (1.0 - P0) / 2.0;
 
+			% disp 'Two Grubbs tests: x and y'
 			ZConfidenceBounds = norminv (1.0 - (1.0 - P0) / 2.0);
 			[ GrubbsBeamInterceptMean(1,1), GrubbsBeamInterceptStdDev(1,1), GrubbsBeamIntercepts ] = ...
 				edi_drift_step_Grubbs (beamIntercepts (1,:), interceptWeights, edi_stats_alpha);
@@ -135,14 +181,14 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 			GrubbsBeamIntercepts = beamIntercepts;
 			GrubbsBeamIntercepts (:, iIntersectXYOutliers) = [];
 
-			nGrubbsBeamIntercepts          = length (GrubbsBeamIntercepts);
+			nGrubbsBeamIntercepts          = size (GrubbsBeamIntercepts, 2);
 			GrubbsBeamInterceptMean_stdDev = GrubbsBeamInterceptStdDev / sqrt (nGrubbsBeamIntercepts); % x,y mean std dev
 			disp ( sprintf ('nGrubbsBeamIntercepts %4d : GrubbsInterceptMean, uncertainty: (%+7.3f, %+7.3f) (%+7.3f, %+7.3f)', ...
 				nGrubbsBeamIntercepts, GrubbsBeamInterceptMean, ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev) )
 
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
-			driftStep_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
+			virtualSource_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
 			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
 			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
 
@@ -153,13 +199,27 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 			% The second term is zero because we are assuming E is perpendicular to B.
 			% B x [ d/T * |B|^2 = E * |B|^2 ~> E = B x d/T
 
-			E_bpp = cross (B_bpp, driftStep_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
-			driftStep     = DMPA2BPP' * driftStep_bpp;
+			% the "target, S*" is the negative of the real drift step; S* is an imaginary point
+			% This should be E = B x v, but B, v are swapped here because we need the real drift step (drift velocity),
+			% not the virtual source, S*. See relevant publications on Cluster drift step
+			% and 'EDI_beams_and_virtual_source_demo_0101.m'.
+			E_bpp = cross (virtualSource_bpp, B_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
+			driftStep     = -(DMPA2BPP' * virtualSource_bpp);
 			dUncertainty  = [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0];
 			% Possible future? dUncertainty  = (DMPA2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
 			driftVelocity = driftStep / gyroPeriod;
 			drift_E       = (DMPA2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
 
+			dsQualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
+			if dsQualityWeight > quarterPi
+				dsQuality = 3;
+			else
+				if dsQualityWeight > 0.5
+					dsQuality = 2;
+				else
+					dsQuality = 1;
+				end				
+			end
 			% -~-~-~-~-~-~-~-~-~
 			if plot_beams
 				edi_drift_step_plot ( ...
@@ -169,11 +229,11 @@ function [ driftStep dUncertainty driftVelocity drift_E ] = edi_drift_step ( ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
 					B_dmpa, ...
-					driftStep_bpp, ...
+					virtualSource_bpp, ...
 					DMPA2BPP, ...
 					GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
-					P0);
+					P0, dsQuality);
 			end
-		end
-	end
+		end % nansum (interceptWeights) > 0.0
+	end %  nBeams > 3
 end

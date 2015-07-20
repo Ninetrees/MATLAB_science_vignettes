@@ -5,24 +5,26 @@ function [] = edi_drift_step_plot ( ...
 	gd_virtual_bpp, ...
 	gd_fv_bpp, ...
 	B_dmpa, ...
-	driftStep_bpp, ...
+	virtualSource_bpp, ...
 	DMPA2BPP, ...
 	GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
-	P0);
+	P0, dsQuality);
 
 	myLibAppConstants % custom colors; set default axis colors
 	cPathSep = pathsep;
 	cFileSep = filesep;
 	global dotVersion pause_each_plot plot_dots save_beam_plots show_unit_vectors
-	persistent hBPP_figure;
+	persistent hBPP_figure; isempty (hBPP_figure); % seems to be needed to trigger proper logic below
+% 	disp 'entering edi_drift_step_plot'
 
 	if isempty (hBPP_figure)
-		hBPP_figure = figure ('Position', [ 400   150   850   800 ]); set (hBPP_figure, 'Visible', 'off');
+		hBPP_figure = figure ('Position', [ 400   150   850   800 ]); set (hBPP_figure, 'Visible', 'off')
 		set (hBPP_figure, 'WindowStyle', 'normal')
 		set (hBPP_figure, 'DockControls', 'off')
 		set (gcf, 'name', 'B_E_field_GDU_locs_beams', 'NumberTitle', 'off', 'visible', 'on');
 		set (0, 'CurrentFigure', hBPP_figure) % hBPP_plotElements
 	end
+
 	% see also clf (fig, 'reset');
 	if pause_each_plot % next commands work best when on the same line !!!
 		clf (hBPP_figure); set (hBPP_figure, 'Visible', 'on');
@@ -143,6 +145,7 @@ function [] = edi_drift_step_plot ( ...
 		set (r, 'edgecolor', myOrange)
 	end
 
+	target_bpp = [ GrubbsBeamInterceptMean; 0.0 ];
 	if show_unit_vectors
 		% B unit vector
 		B_bpp = DMPA2BPP * B_dmpa;
@@ -150,7 +153,6 @@ function [] = edi_drift_step_plot ( ...
 		hBPP_plotElements (7) = line ( [ 0.0 B_bpp_u(1) ], [ 0.0 B_bpp_u(2) ], [ 0.0 B_bpp_u(3) ], ...
 			'LineStyle', '-', 'LineWidth', 2.0, 'Color', MMS_plotColorx); % B field vector
 
-		target_bpp = [ GrubbsBeamInterceptMean; 0.0 ];
 		target_bpp_u = target_bpp / norm (target_bpp, 2);
 		hBPP_plotElements (8) = line ( [ 0.0 target_bpp_u(1) ], [ 0.0 target_bpp_u(2) ], [ 0.0 target_bpp_u(3) ], ...
 			'LineStyle', '-', 'LineWidth', 2.0, 'Color', MMS_plotColory); % B field vector
@@ -159,40 +161,63 @@ function [] = edi_drift_step_plot ( ...
 	if plot_dots
 		% Note here that NOT ALL intersections are plotted,
 		% just those returned by Grubbs...()
-		for i = 1: size (GrubbsBeamIntercepts, 2)
-			p = plot3 ( ...
-				GrubbsBeamIntercepts (1,i), ...
-				GrubbsBeamIntercepts (2,i), ...
-				0.0, ...
-				'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', myGold, 'MarkerEdgeColor', myGold, 'MarkerSize', 2.0);
-		end
+% 		GrubbsBeamInterceptsSize = size (GrubbsBeamIntercepts)
+% 		size (GrubbsBeamIntercepts, 2)
+		p = scatter ( ...
+			GrubbsBeamIntercepts (1,:), ...
+			GrubbsBeamIntercepts (2,:), ...
+			9.0, 'r', '*');
+% 			5.0, myGold, '*');
+% 			'MarkerFaceColor', myGold, 'MarkerEdgeColor', myGold);
+% 		for i = 1: size (GrubbsBeamIntercepts, 2)
+% 	 		fprintf ('.');
+% 			p = plot3 ( ...
+% 				GrubbsBeamIntercepts (1,1), ...
+% 				GrubbsBeamIntercepts (2,1), ...
+% 				0.0, ...
+% 				'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', 'r', 'MarkerEdgeColor', 'r', 'MarkerSize', 2.0);
+% 				'LineStyle', 'none', 'Marker', 'o', 'MarkerFaceColor', myGold, 'MarkerEdgeColor', myGold, 'MarkerSize', 2.0);
+% 		end
+% size (p)
+
 		hBPP_plotElements (9) = p;
 	end
 
-	nBeamIntercepts = length (GrubbsBeamIntercepts);
+	nBeamIntercepts = size (GrubbsBeamIntercepts, 2);
 	bTimeStr = datestr (spdftt2000todatenum (B_tt2000), 'yyyy-mm-dd HH:MM:ss');
 	title ( { ...
 		[ 'EDI drift step using beam convergence, ', dotVersion, ', B_{AVG} BPP'];
-		[ 'MMS', obsID, ': ', bTimeStr, ', P_{0} = ', num2str(P0, 3), ' Points = ', num2str(nBeamIntercepts) ];
+		[ 'MMS', obsID, ': ', bTimeStr, ', P_{0} = ', num2str(P0, 3), ', Points = ', num2str(nBeamIntercepts), ', Q = ', num2str(dsQuality) ];
 		[ 'B_{DMPA} [',...
 		  num2str(round (B_dmpa (1))),',',...
 		  num2str(round (B_dmpa (2))),',',...
 		  num2str(round (B_dmpa (3))), '] nT,   ', ...
 		  'd_{BPP} [',...
-		  num2str(driftStep_bpp (1),'%5.2f'),',',...
-		  num2str(driftStep_bpp (2),'%5.2f'),',',...
-		  num2str(driftStep_bpp (3),'%5.2f'), '] m', ...
+		  num2str(virtualSource_bpp (1),'%5.2f'),',',...
+		  num2str(virtualSource_bpp (2),'%5.2f'),',',...
+		  num2str(virtualSource_bpp (3),'%5.2f'), '] m', ...
 		]; ...
 		[ '~> click plot to advance...'];
 		[] }, 'Fontname', 'Times');
-length (hBPP_plotElements)
+
+	target_bpp_angle = atan2d (target_bpp(2), target_bpp(1));
+	if ( (target_bpp_angle > 0) & (target_bpp_angle < 90) ) % target in NorthEast
+		legend_location = 'NorthWest';
+	else
+		legend_location = 'NorthEast';
+	end
 	switch length (hBPP_plotElements) % !!! Specifying legend (hBPP_plotElements, ... FINALLY fixed problem w legend not displaying correctly
 		case 6
-			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*' );
+			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*', ...
+				'Location', legend_location );
 		case 8
-			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*', 'B_{BPP} (unit)', 'Target_{BPP} (unit)' );
+			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*', ...
+				'B_{BPP} (unit)', 'Target_{BPP} (unit)', ...
+				'Location', legend_location );
 		case 9
-			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*', 'B_{BPP} (unit)', 'Target_{BPP} (unit)' , 'Intercepts' );
+			legend (hBPP_plotElements, 'BPP plane', 'GDU plane in BPP', 'GDU 1', 'GDU 2', 'EDI beam', 'Target S*', ...
+				'B_{BPP} (unit)', 'Target_{BPP} (unit)', 'Intercepts', ...
+				'Location', legend_location );
 	end
 	if save_beam_plots
 		% Example: 'mms2_edi_20150509_drift_step_BPP_163130_v1.03a.png'
@@ -200,7 +225,9 @@ length (hBPP_plotElements)
 			'.' cFileSep 'mms', obsID, '_edi_', ...
 			bTimeStr(1:4) bTimeStr(6:7) bTimeStr(9:10) '_drift_step_BPP', ...
 			bTimeStr(12:13) bTimeStr(15:16) bTimeStr(18:19), ...
-			'_', dotVersion, 'a.png' ];
+			'_', dotVersion, ...
+			'_i', num2str(size(GrubbsBeamIntercepts, 2), '%04d'), '.png', ...
+		];
 		hgexport (gcf, SavePlotFilename, EDI_presentation_beam_plot_style);
 	end
 
@@ -208,3 +235,18 @@ length (hBPP_plotElements)
 		dummy = waitforbuttonpress;
 	end
 end
+
+% for i=1:3
+% 	disp (sprintf (' i = %d\n', i))
+% 	if i > 2
+% 		disp 'i>2'
+% 	else
+% 		disp 'i <= 2'
+% 		if i > 1
+% 			disp 'i>1'
+% 		else
+% 			disp 'i=1'
+% 		end	
+% 	end			
+% end
+% disp 'end'
