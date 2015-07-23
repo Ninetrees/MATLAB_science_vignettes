@@ -76,6 +76,9 @@ if useAltDisplay
 	end
 end
 % -~-~-~-~-~-~-~-~-~
+datenum_1min  = 0.0006944444496185;
+datenum_10min = 0.006944444496185;
+datenum_1hr   = 60.0 * datenum_1min;
 
 cPathSep = pathsep;
 cFileSep = filesep;

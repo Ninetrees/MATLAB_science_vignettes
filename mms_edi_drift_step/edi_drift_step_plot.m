@@ -246,7 +246,7 @@ end
 % 			disp 'i>1'
 % 		else
 % 			disp 'i=1'
-% 		end	
-% 	end			
+% 		end
+% 	end
 % end
 % disp 'end'

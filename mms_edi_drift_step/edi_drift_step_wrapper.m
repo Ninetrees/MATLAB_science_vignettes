@@ -25,41 +25,54 @@
 % Required Products None
 %
 % Plots that prompt questions:
-% 
+%
 % History:
 % ISA: intersection angle
-% 2015-07-20 ~ v0105:
-%  ~ v010502: added first estimate of beam intersection quality
+% 2015-07-22 ~ v010503:
+%  ~ v010503: add plot of weights versus intersection angles, with quality setpoints
+%  ~ add internal notes
+%  ~ change sinx_wt_Q_xovr definition; change plot to degrees for clarity
+%  ~ added beam_intercept_angle_test.m to project to validate calculation
+%  ~ add abs() to intersect angle - weight calcs (-90..90° ~> 0..90°)
+%
+% 2015-07-20 ~ v010502:
+%  ~ v010502: add first estimate of beam intersection quality - parallelism
+%
 %  ~ v010501: IA < macroBeamCheckAngle = atan(tand(5)) ~> NaN
 %    There are subtle (small, insignificant) differences in a few S*;
 %    not worth the code expense.
 %  ~ v010500: all beams included. sin^4 weighting
 %  ~ Use 'mms2_edi_slow_ql_efield_20150509_v0.1.3.cdf'
-%  ~ added intercept count to file name
-%  ~ added batch file to send project to Git dir
+%  ~ add intercept count to file name
+%  ~ add batch file to send project to Git dir
 %  ~ changed weight from sin^2 to sin^4
+%
 % 2015-06-30 ~ v0104:
 %  ~ made plot figure persistent; removed figure close () in plot routine
 %  ~ finally got the plots to update & save in the background, but not sure that
 %    there is an actual performance improvement.
-%  ~ added switch to choose among rotation matrix methods
-%  ~ added switch to show unit vectors
+%  ~ add switch to choose among rotation matrix methods
+%  ~ add switch to show unit vectors
 %  ~ different symbols and lines for GDU1, 2
 %  ~ added legend to beam plots
+%
 % 2015-06-23 ~ v0103:
 %  ~ included global vars to control program flow
 %  ~ made plots invisble during plotting if pause_each_plot = false
-%  ~ updated trace disps to command window and plot title content
+%  ~ update trace disps to command window and plot title content
+%
 % 2015-06-22 ~ v0102:
 %  ~ use CDF files for EDI, B, and EDP data
 %  ~ apply plot style during save
 %  ~ include obsID on plots
 %  ~ include local copies of myLibAppConstants, myLibScienceConstants
-%  ~ changed references to Cluster data
+%  ~ change references to Cluster data
+%
 % 2015-06-19 ~ v0101:
 %  ~ update plot: sample datetime, selected confidence, legend
 %  ~ implement weighted mean: sin^2
-%  ~ tested with 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
+%  ~ teste with 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
+%
 % 2015-06-08 ~ v0100:
 %  ~ draft, proof of concept
 %
@@ -77,19 +90,21 @@ close all       % close all figures
 format compact
 format short g  % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
+myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.05.02'; 
+global dotVersion;        dotVersion        = 'v1.05.03';
 global pause_each_plot;   pause_each_plot   = false;   % Plots are not visible if they are not paused
 global plot_beams;        plot_beams        = false;
 global plot_dots;         plot_dots         = false;
 global plot_edi_E_dmpa;   plot_edi_E_dmpa   = false;
 global plot_summary;      plot_summary      = true;
-global plot_sinxWeights;  plot_sinxWeights  = true;
+global plot_sinx_weights; plot_sinx_weights = false;
 global rotation_method;   rotation_method   = 2;      % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
 global save_beam_plots;   save_beam_plots   = false;
-% global sinxWeightQpoints; sinxWeightQpoints = [ 0.5 quarterPi ]; % breakpoints for quality ranges for sin^x weighting
+sinx_wt_Q_xovr_angles = [ 8.0 30 ];
+global sinx_wt_Q_xovr;    sinx_wt_Q_xovr    = sind (sinx_wt_Q_xovr_angles).^4.0; % breakpoints for quality ranges for sin^x weighting
 global show_unit_vectors; show_unit_vectors = false;
-global use_v10502;        use_v10502        = true;
+global use_v10502;        use_v10502        = false; % Remove parallel beams
 
 edi_drift_step_read_ql__EDI__B__EDP_data
 
@@ -154,19 +169,26 @@ if plot_summary
 	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_dsl;
 	hEDI_E_B_plot (3:5) = hEDI_B;
 
-	plotDateMin = double (min (min(edp_datenum), min(BdvE_datenum)));
-	plotDateMax = double (max (max(edp_datenum), max(BdvE_datenum)));
+	% retained for full-width data plot
+	% plotDateMin = double (min (min(edp_datenum), min(BdvE_datenum)));
+	% plotDateMax = double (max (max(edp_datenum), max(BdvE_datenum)));
 
-	datenumOneMin = 0.0006944444496185;
-	datenumOneHr  = 60.0 * datenumOneMin;
+	plotDateMin = datenum ('2015-05-09 15:40:00'); % datestr (plotDateMin, 'yyyy-mm-dd HH:MM:SS');
+	plotDateMax = datenum ('2015-05-09 16:40:00');
+
 	xlim ( [ plotDateMin plotDateMax ] )
-	set (gca, 'XTick', [ plotDateMin: datenumOneHr: plotDateMax]) % debug?
-
-	datetick ('x', 'HH:MM', 'keeplimits', 'keepticks') % debug?
-
+	xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_tt2000(1)), 'yyyy-mm-dd') ))
+	set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax])
+	datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
 	set (hAxis(2), 'XTick', [])
 
+	ylim ([ -4 4 ])
+	ylabel (hAxis (1),'mV-m^-^1')
+	ylabel (hAxis (2),'nT')
+
+	grid on
 	hold on
+
 	set (hEDI_B(1), 'Color', MMS_plotColorx);
 	set (hEDI_B(2), 'Color', MMS_plotColory);
 	set (hEDI_B(3), 'Color', MMS_plotColorz);
@@ -186,6 +208,8 @@ if plot_summary
 		edi_E_dmpa (:, iedi_E_dmpa_fillVal) = NaN;
 	end
 
+	hEDI_E_B_plot (8) = bar (BdvE_datenum, dsQuality, 0.1, 'w', 'EdgeColor', myTan);
+
 % 	hcdf_Ex = plot (BdvE_datenum, edi_E_dmpa (1,:), ...
 % 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myDarkRed, 'MarkerEdgeColor', myDarkRed, 'MarkerSize', 6.0);
 
@@ -195,29 +219,33 @@ if plot_summary
 
 % 	hEDI_E_B_plot (8:9) = [ hDrift_Ex, hDrift_Ey];
 
-% 	hEDI_E_B_plot (10) = bar (BdvE_datenum, dsQuality, 0.3,...
-% 		'w', 'EdgeColor','w');
+	title ([' EDI drift step ', dotVersion, ': MMS', obsID, ' SDP 2D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'])
 
-	title 'SDP 2D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'
-% 	dateStart = datenum('2015-05-09 15:40:00');
-% 	dateStop  = datenum('2015-05-09 16:40:00');
-% 	dateStart = datenum('2015-05-09 12:00:00');
-% 	dateStop  = datenum('2015-05-09 13:00:00');
-% 	xlim ([ dateStart dateStop ])
-	datenum10min = 0.006944444496185;
-% 	set (gca, 'XTick', [dateStart: datenum10min: dateStop])
-	datetick ('x', 'HH:MM', 'keepticks')
-	ylim ([ -4 8 ])
-	xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_tt2000(1)), 'yyyy-mm-dd') ))
-	ylabel (hAxis (1),'mV-m^-^1')
-	ylabel (hAxis (2),'nT')
-	grid on
 % 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'CDF E_x', 'CDF E_y', 'Quality', 'B_x', 'B_y', 'B_z');
 % 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
-	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'B_x', 'B_y', 'B_z');
+% 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'B_x', 'B_y', 'B_z');
+	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
 
 	hold off
 end % if plot_summary
+
+if plot_sinx_weights
+	figure;
+	hAxes = axes;
+	intersect_angles = 0.0: 0.1: 90.0;
+	plot (intersect_angles, sind(intersect_angles).^4.0)
+	xlim ([0.0 90.0])
+	hold on
+	title 'Sin^4 weights versus intersection angles, with quality setpoints'
+	line ([sinx_wt_Q_xovr_angles(1) sinx_wt_Q_xovr_angles(1)], get (hAxes, 'YLim'), 'Color', [1.0 0.0 0.0]);
+	line ([sinx_wt_Q_xovr_angles(2) sinx_wt_Q_xovr_angles(2)], get (hAxes, 'YLim'), 'Color', [1.0 0.0 0.0]);
+	text ( 3.0, 0.5, 'Q1')
+	text (17.0, 0.5, 'Q2')
+	text (60.0, 0.5, 'Q3')
+	xlabel ('Intercept angle, degrees')
+	ylabel ('Weight')
+	hold off
+end % if plot_sinx_weights
 
 figure
 hist (double(dsQuality), [0:3])

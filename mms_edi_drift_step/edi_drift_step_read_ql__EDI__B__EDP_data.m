@@ -35,11 +35,11 @@ mms2_edi_slow_ql_efield_20150509_v0.1.3.cdf
   'mms2_edi_beam_quality_gd21'        [1x2 double]    [3142]    'int8'      'T/'     'Full'    'None'    [0]    [                -127]
   'mms2_edi_d_std_dmpa'               [1x2 double]    [ 501]    'single'    'T/T'    'Full'    'None'    [0]    [      -1.0000000e+30]
   'mms2_edi_B_std_dmpa'               [1x2 double]    [ 501]    'single'    'T/T'    'Full'    'None'    [0]    [      -1.0000000e+30]
-  'E_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '                  
-  'v_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '                  
-  'd_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '                  
-  'B_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '                  
-  'vg_labl_vname'                     [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    ' '                   
+  'E_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '
+  'v_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '
+  'd_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '
+  'B_Labl_Ptr'                        [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    '  '
+  'vg_labl_vname'                     [1x2 double]    [   3]    'char'      'T/'     'Full'    'None'    [0]    ' '
 
 				 0         0         0         0         0
 mms2_edp_comm_ql_dce2d_20150509000000_v0.0.0.cdf'
