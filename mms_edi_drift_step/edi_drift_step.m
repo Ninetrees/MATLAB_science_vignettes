@@ -54,7 +54,7 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 	gd_fv_bpp      = DMPA2BPP * gd_fv_dmpa;
 
 	% -~-~-~-~-~-~-~-~-~
-	% Find the most probable beam convergence for the drift step "target", S*
+	% Find the most probable beam convergence for the drift step virtual source S*
 	% Theory:
 	% The beams were rotated into BPP. Those beams are parallel to BPP (perpendicular to B),
 	% though shifted in BBPz according to the tilt of the spacecraft in BPP.
@@ -109,7 +109,7 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 		end
 	end
 % keyboard
-	% Find the target in BPP, using BPP FV convergence
+	% Find the S* in BPP, using BPP FV convergence
 	% preAlloc beamIntercepts based on nBeams: (nBeams - 1) * nBeams / 2
 	% -~-~-~-~-~-~-~-~-~
 	nBeams           = uint32 (length (gd_m_bpp));
@@ -203,7 +203,7 @@ interceptWeights = interceptWeights;
 			% The second term is zero because we are assuming E is perpendicular to B.
 			% B x [ d/T * |B|^2 = E * |B|^2 ~> E = B x d/T
 
-			% the "target, S*" is the negative of the real drift step; S* is an imaginary point
+			% the virtual source S* is the negative of the real drift step; S* is an imaginary point
 			% This should be E = B x v, but B, v are swapped here because we need the real drift step (drift velocity),
 			% not the virtual source, S*. See relevant publications on Cluster drift step
 			% and 'EDI_beams_and_virtual_source_demo_0101.m'.

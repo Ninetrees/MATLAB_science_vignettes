@@ -13,13 +13,30 @@
 % There are no parms passed in. Each version of the program reads specific MMS
 % data files that may change from version to version.
 % Data files for this version:
-% 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
-% 'mms2_edp_comm_ql_dce2d_20150509000000_v0.0.0.cdf'
+% 'mms2_edi_slow_ql_efield_20150509_v0.1.4.cdf'
+% 'mms2_edp_comm_ql_dce2d_20150509000000_v0.1.0.cdf'
 %
 % Output:
 % Optionally produces a series of drift step plots.
 % Optionally saves drift step plots.
 % Optionally produces a summary plot of B, SDP, and drift step E-field.
+% ~~~> global program control flag notes
+% pause_each_plot   ~ During plotting of 5s beam sets, pauses until user clicks on plot.
+%                   ~ Requires plot_beams
+%                   ~ Plots are not visible if they are not paused
+% plot_beams        ~ Causes plotting of 5s beam sets. If this is not set, drift steps
+%                     are calculated, but not plotted.
+% plot_dots         ~ Plot dots at beam intersections that are used in final drift step
+%                     calculations.
+%                   ~ Requires plot_beams
+% plot_edi_E_dmpa   ~ Plot E-field from CDF file to compare with edi_drift_step (inactive).
+% plot_summary      ~ Plot the summary plot (B, EDP E, drift step E, Quality, Quality histo).
+% plot_sinx_weights ~ Plot the weighting function and quality crossover points.
+% save_beam_plots   ~ Saves each 5s beam set to files.
+%                     Ex: mms2_edi_20150509_drift_step_BPP163140_v1.05.00_i0001.png
+%                   ~ Requires plot_beams
+% use_v10502        ~ Remove parallel beams; otherwise, leave them in, but assign
+%                     low weights to them.
 %
 % MATLAB release(s) MATLAB 8.3.0.532 (R2014a)
 % Required Products None
@@ -28,15 +45,20 @@
 %
 % History:
 % ISA: intersection angle
+% 2015-07-24 ~ v010504:
+%  ~ add internal notes about global flags
+%  ~ replace references to 'target' with 'virtual source', or some variant
+%  ~ add myLibCDFConstants.m
+%
 % 2015-07-22 ~ v010503:
-%  ~ v010503: add plot of weights versus intersection angles, with quality setpoints
+%  ~ add plot of weights versus intersection angles, with quality setpoints
 %  ~ add internal notes
 %  ~ change sinx_wt_Q_xovr definition; change plot to degrees for clarity
-%  ~ added beam_intercept_angle_test.m to project to validate calculation
+%  ~ add beam_intercept_angle_test.m to project to validate calculation
 %  ~ add abs() to intersect angle - weight calcs (-90..90° ~> 0..90°)
 %
 % 2015-07-20 ~ v010502:
-%  ~ v010502: add first estimate of beam intersection quality - parallelism
+%  ~ add first estimate of beam intersection quality - parallelism
 %
 %  ~ v010501: IA < macroBeamCheckAngle = atan(tand(5)) ~> NaN
 %    There are subtle (small, insignificant) differences in a few S*;
@@ -88,20 +110,20 @@ close all       % close all figures
 % clear (persistentVarNames {:})
 
 format compact
-format short g  % +, bank, hex, long, rat, short, short g, short eng
+format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.05.03';
+global dotVersion;        dotVersion        = 'v1.05.04';
 global pause_each_plot;   pause_each_plot   = false;   % Plots are not visible if they are not paused
-global plot_beams;        plot_beams        = false;
-global plot_dots;         plot_dots         = false;
+global plot_beams;        plot_beams        = true;
+global plot_dots;         plot_dots         = true;
 global plot_edi_E_dmpa;   plot_edi_E_dmpa   = false;
-global plot_summary;      plot_summary      = true;
+global plot_summary;      plot_summary      = false;
 global plot_sinx_weights; plot_sinx_weights = false;
 global rotation_method;   rotation_method   = 2;      % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
-global save_beam_plots;   save_beam_plots   = false;
-sinx_wt_Q_xovr_angles = [ 8.0 30 ];
+global save_beam_plots;   save_beam_plots   = true;
+sinx_wt_Q_xovr_angles                       = [ 8.0 30 ];
 global sinx_wt_Q_xovr;    sinx_wt_Q_xovr    = sind (sinx_wt_Q_xovr_angles).^4.0; % breakpoints for quality ranges for sin^x weighting
 global show_unit_vectors; show_unit_vectors = false;
 global use_v10502;        use_v10502        = false; % Remove parallel beams
@@ -227,6 +249,9 @@ if plot_summary
 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
 
 	hold off
+
+	figure
+	hist (double(dsQuality), [0:3])
 end % if plot_summary
 
 if plot_sinx_weights
@@ -247,5 +272,3 @@ if plot_sinx_weights
 	hold off
 end % if plot_sinx_weights
 
-figure
-hist (double(dsQuality), [0:3])
