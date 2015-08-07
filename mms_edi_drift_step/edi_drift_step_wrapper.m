@@ -38,6 +38,13 @@
 % use_v10502        ~ Remove parallel beams; otherwise, leave them in, but assign
 %                     low weights to them.
 %
+% Important !!! notes about variable naming conventions
+% iVarName is an index to VarName
+% iiVarName is an index to an index to VarName; e.g., VarName (iVarName (iiVarName))
+% nVarName is the number of elements in VarName
+% _dn  indicates a MATLAB datenum variable
+% _t2k indicates a CDF TT2000 variable
+%
 % MATLAB release(s) MATLAB 8.3.0.532 (R2014a)
 % Required Products None
 %
@@ -45,6 +52,13 @@
 %
 % History:
 % ISA: intersection angle
+% 2015-08-07 ~ v010505:
+%  ~ add CDF_varInfo.m
+%  ~ use CDF FILLVALs
+%  ~ clarify use of (edi_BdvE_recnum:edi_xref2_BdvE) :: (1:many)
+%  ~ scale drift velocity from SI to km/s, IAW
+%    https://lasp.colorado.edu/galaxy/display/mms/Units+of+Measure (2015-08-08)
+%
 % 2015-07-24 ~ v010504:
 %  ~ add internal notes about global flags
 %  ~ replace references to 'target' with 'virtual source', or some variant
@@ -114,15 +128,15 @@ format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.05.04';
+global dotVersion;        dotVersion        = 'v1.05.05';
 global pause_each_plot;   pause_each_plot   = false;   % Plots are not visible if they are not paused
-global plot_beams;        plot_beams        = true;
-global plot_dots;         plot_dots         = true;
+global plot_beams;        plot_beams        = false;
+global plot_dots;         plot_dots         = false;
 global plot_edi_E_dmpa;   plot_edi_E_dmpa   = false;
-global plot_summary;      plot_summary      = false;
+global plot_summary;      plot_summary      = true;
 global plot_sinx_weights; plot_sinx_weights = false;
 global rotation_method;   rotation_method   = 2;      % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
-global save_beam_plots;   save_beam_plots   = true;
+global save_beam_plots;   save_beam_plots   = false;
 sinx_wt_Q_xovr_angles                       = [ 8.0 30 ];
 global sinx_wt_Q_xovr;    sinx_wt_Q_xovr    = sind (sinx_wt_Q_xovr_angles).^4.0; % breakpoints for quality ranges for sin^x weighting
 global show_unit_vectors; show_unit_vectors = false;
@@ -130,7 +144,7 @@ global use_v10502;        use_v10502        = false; % Remove parallel beams
 
 edi_drift_step_read_ql__EDI__B__EDP_data
 
-nB_recs       = length (BdvE_datenum);
+nB_recs       = length (BdvE_dn);
 driftStep     = zeros (3, nB_recs);
 dUncertainty  = zeros (3, nB_recs);
 driftVelocity = zeros (3, nB_recs);
@@ -138,8 +152,9 @@ drift_E       = zeros (3, nB_recs);
 drift_E (:,:) = NaN;
 dsQuality     = zeros (1, nB_recs, 'uint8');
 
-% for each B interval, there are EDI records indexed to B ~ many EDI:1 B
+% for each B interval, there are EDI records indexed to B:EDI :: 1:many
 % Here we look at each B record, find the corresponding EDI records, and filter.
+
 disp 'looping over edi_B_dmpa'
 for B_recnum = 1: size (edi_B_dmpa, 2)
 % 	sprintf (' processing B_recnum %d', B_recnum)
@@ -147,59 +162,54 @@ for B_recnum = 1: size (edi_B_dmpa, 2)
 	% MMS2 2015-05-09 16:08:35 - 16:08:40
 	% 	tt2000_20150509_160835 = spdfdatenumtott2000(datenum('2015-05-09 16:08:34', 'yyyy-mm-dd HH:MM:ss'))
 	% 	tt2000_20150509_160840 = spdfdatenumtott2000(datenum('2015-05-09 16:08:39', 'yyyy-mm-dd HH:MM:ss'))
-	% 	B_recnum = find ( (edi_BdvE_tt2000 >= tt2000_20150509_160835) & (edi_BdvE_tt2000 < tt2000_20150509_160840) )
+	% 	B_recnum = find ( (edi_BdvE_t2k >= tt2000_20150509_160835) & (edi_BdvE_t2k < tt2000_20150509_160840) )
 
 	BdvE_recnum  = edi_BdvE_recnum (B_recnum)'; % should be ONLY >1<
-	iB_to_edi = find (edi_gd_B_xref == BdvE_recnum);
+	iB_xref2_edi = find (edi_xref2_BdvE == BdvE_recnum); % 0 or more
 
-	B_dmpa   = edi_B_dmpa (1:3,B_recnum);
-	if ~isnan (B_dmpa (1))
+	% keyboard
+	if (length (iB_xref2_edi) > 1) % More than 1 beam
+		B_dmpa   = edi_B_dmpa (1:3, B_recnum)
+		B_t2k = edi_BdvE_t2k (B_recnum);
 
-		% B field data
-		B_tt2000 = edi_BdvE_tt2000 (B_recnum);
+		gd_virtual_dmpa = edi_gd_virtual_dmpa (:, iB_xref2_edi);
+		gd_fv_dmpa      = edi_gd_fv_dmpa      (:, iB_xref2_edi);
+		gd_ID           = edi_gd_ID           (:, iB_xref2_edi);
 
-		% keyboard
-		if (length (iB_to_edi) > 2) % More than 2 beams
-
-			gd_virtual_dmpa = edi_gd_virtual_dmpa (:, iB_to_edi);
-			gd_fv_dmpa      = edi_gd_fv_dmpa      (:, iB_to_edi);
-			gd_ID           = edi_gd_ID           (:, iB_to_edi);
-
-			[ driftStep(:, B_recnum), ...
-			  dUncertainty(:, B_recnum), ...
-			  driftVelocity(:, B_recnum), ...
-			  drift_E(:, B_recnum), dsQuality(:, B_recnum) ] = edi_drift_step ( ...
-				obsID, ...
-				B_tt2000, ...
-				B_dmpa, ...
-				gd_virtual_dmpa, ...
-				gd_fv_dmpa, ...
-				gd_ID );
-		else
-			drift_E (:, B_recnum) = [ NaN; NaN; NaN ];
-		end
-
+		[ driftStep(:, B_recnum), ...
+		  dUncertainty(:, B_recnum), ...
+		  driftVelocity(:, B_recnum), ...
+		  drift_E(:, B_recnum), dsQuality(:, B_recnum) ] = edi_drift_step ( ...
+			obsID, ...
+			B_t2k, ...
+			B_dmpa, ...
+			gd_virtual_dmpa, ...
+			gd_fv_dmpa, ...
+			gd_ID );
+	else
+		drift_E (:, B_recnum) = [ NaN; NaN; NaN ];
 	end
+
 end % for B_recnum = 1: ...
 
 if plot_summary
 	set (0, 'DefaultFigureVisible', 'on')
 
 	[ hAxis hEDP_dce_xyz_dsl hEDI_B ] = plotyy ( ...
-		edp_datenum, edp_dce_xyz_dsl(:, 1:2), ...
-		BdvE_datenum, edi_B_dmpa (1:3, :)', @plot, @plot );
+		edp_dn, edp_dce_xyz_dsl(:, 1:2), ...
+		BdvE_dn, edi_B_dmpa (1:3, :)', @plot, @plot );
 	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_dsl;
 	hEDI_E_B_plot (3:5) = hEDI_B;
 
 	% retained for full-width data plot
-	% plotDateMin = double (min (min(edp_datenum), min(BdvE_datenum)));
-	% plotDateMax = double (max (max(edp_datenum), max(BdvE_datenum)));
+	% plotDateMin = double (min (min(edp_dn), min(BdvE_dn)));
+	% plotDateMax = double (max (max(edp_dn), max(BdvE_dn)));
 
 	plotDateMin = datenum ('2015-05-09 15:40:00'); % datestr (plotDateMin, 'yyyy-mm-dd HH:MM:SS');
 	plotDateMax = datenum ('2015-05-09 16:40:00');
 
 	xlim ( [ plotDateMin plotDateMax ] )
-	xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_tt2000(1)), 'yyyy-mm-dd') ))
+	xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_t2k(1)), 'yyyy-mm-dd') ))
 	set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax])
 	datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
 	set (hAxis(2), 'XTick', [])
@@ -215,11 +225,11 @@ if plot_summary
 	set (hEDI_B(2), 'Color', MMS_plotColory);
 	set (hEDI_B(3), 'Color', MMS_plotColorz);
 
-	hDrift_Ex = plot (BdvE_datenum, drift_E (1,:), ...
+	hDrift_Ex = plot (BdvE_dn, drift_E (1,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
 		'MarkerFaceColor', myReddishPurple, 'MarkerEdgeColor', myReddishPurple, 'MarkerSize', 3.0);
 
-	hDrift_Ey = plot (BdvE_datenum, drift_E (2,:), ...
+	hDrift_Ey = plot (BdvE_dn, drift_E (2,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
 		'MarkerFaceColor', myOrange, 'MarkerEdgeColor', myOrange, 'MarkerSize', 3.0);
 	% datetick ()
@@ -230,12 +240,12 @@ if plot_summary
 		edi_E_dmpa (:, iedi_E_dmpa_fillVal) = NaN;
 	end
 
-	hEDI_E_B_plot (8) = bar (BdvE_datenum, dsQuality, 0.1, 'w', 'EdgeColor', myTan);
+	hEDI_E_B_plot (8) = bar (BdvE_dn, dsQuality, 0.1, 'w', 'EdgeColor', myTan);
 
-% 	hcdf_Ex = plot (BdvE_datenum, edi_E_dmpa (1,:), ...
+% 	hcdf_Ex = plot (BdvE_dn, edi_E_dmpa (1,:), ...
 % 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myDarkRed, 'MarkerEdgeColor', myDarkRed, 'MarkerSize', 6.0);
 
-% 	hcdf_Ey = plot (BdvE_datenum, edi_E_dmpa (2,:), ...
+% 	hcdf_Ey = plot (BdvE_dn, edi_E_dmpa (2,:), ...
 % 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myOrange, 'MarkerEdgeColor', myOrange, 'MarkerSize', 6.0);
 % 	hEDI_E_B_plot (8:9) = [ hcdf_Ex, hcdf_Ey];
 

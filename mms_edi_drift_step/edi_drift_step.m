@@ -4,7 +4,7 @@
 
 function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_step ( ...
 	obsID, ...
-	B_tt2000, ...
+	B_t2k, ...
 	B_dmpa, ...
 	gd_virtual_dmpa, ...
 	gd_fv_dmpa, ...
@@ -36,7 +36,7 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 			DMPA2BPPx = cross (DMPA2BPPy, Bu);
 			DMPA2BPPx = DMPA2BPPx / norm (DMPA2BPPx, 2);
 			DMPA2BPPy = cross (Bu, DMPA2BPPx);
-			DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ];
+			DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ]
 
 		% Method 3 ________________________________________________________________
 		otherwise
@@ -44,14 +44,14 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 			keyboard
 	end % switch
 
-	B_bpp = DMPA2BPP * B_dmpa;
+	B_bpp = DMPA2BPP * B_dmpa
 	% OR
 	B_bpp = [ 0.0; 0.0; B2n ];
 
 	% -~-~-~-~-~-~-~-~-~
 	% Rotate GDU positions and firing vectors for each GDU into BPP
-	gd_virtual_bpp = DMPA2BPP * gd_virtual_dmpa;
-	gd_fv_bpp      = DMPA2BPP * gd_fv_dmpa;
+	gd_virtual_bpp = DMPA2BPP * gd_virtual_dmpa
+	gd_fv_bpp      = DMPA2BPP * gd_fv_dmpa
 
 	% -~-~-~-~-~-~-~-~-~
 	% Find the most probable beam convergence for the drift step virtual source S*
@@ -160,8 +160,8 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 % 				end
 			end
 		end
-interceptAngleDeg = interceptAngle*rad2deg;
-interceptWeights = interceptWeights;
+% interceptAngleDeg = interceptAngle*rad2deg
+% interceptWeights = interceptWeights
 		% This test is only valid if NaN is implements above;
 		% otherwise, this is always true.
 		interceptWeightsSum = nansum (interceptWeights);
@@ -195,7 +195,7 @@ interceptWeights = interceptWeights;
 			virtualSource_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
 			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
 			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
-
+% keyboard
 			% vE = v in direction of E; T = gyroPeriod
 			% ( vE = d/T ) = ExB/|B|^2 ~> d / T * |B|^2 = ExB --- Pacshmann, 1998, 2001, EDI for Cluster
 			% Cross from the left with B: B x [] = BxExB
@@ -211,7 +211,7 @@ interceptWeights = interceptWeights;
 			driftStep     = -(DMPA2BPP' * virtualSource_bpp);
 			dUncertainty  = [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0];
 			% Possible future? dUncertainty  = (DMPA2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
-			driftVelocity = driftStep / gyroPeriod;
+			driftVelocity = driftStep / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
 			drift_E       = (DMPA2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
 
 			dsQualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
@@ -228,7 +228,7 @@ interceptWeights = interceptWeights;
 			if plot_beams
 				edi_drift_step_plot ( ...
 					obsID, ...
-					B_tt2000, ...
+					B_t2k, ...
 					gd_ID, ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
