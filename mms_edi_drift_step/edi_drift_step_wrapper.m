@@ -52,6 +52,9 @@
 %
 % History:
 % ISA: intersection angle
+% 2015-08-11 ~ v010506:
+%  ~ minor internal docs
+%
 % 2015-08-07 ~ v010505:
 %  ~ add CDF_varInfo.m
 %  ~ use CDF FILLVALs
@@ -169,8 +172,8 @@ for B_recnum = 1: size (edi_B_dmpa, 2)
 
 	% keyboard
 	if (length (iB_xref2_edi) > 1) % More than 1 beam
-		B_dmpa   = edi_B_dmpa (1:3, B_recnum)
-		B_t2k = edi_BdvE_t2k (B_recnum);
+		B_dmpa = edi_B_dmpa (1:3, B_recnum)
+		B_t2k  = edi_BdvE_t2k (B_recnum);
 
 		gd_virtual_dmpa = edi_gd_virtual_dmpa (:, iB_xref2_edi);
 		gd_fv_dmpa      = edi_gd_fv_dmpa      (:, iB_xref2_edi);

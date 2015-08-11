@@ -1,7 +1,3 @@
-% Help comments
-%
-%
-
 function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_step ( ...
 	obsID, ...
 	B_t2k, ...
@@ -125,7 +121,8 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 	nBeamIntercepts  = 0;
 	dsQuality = 0;
 	if nBeams > 1 % can't have an intersection with just 1 beam
-		% find the slope and y-intercept for all beams
+
+		% find the intercepts for all beams
 		for i = 1: nBeams-1
 			for j = i+1: nBeams
 				XY = [ ...
@@ -143,8 +140,9 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 		% changed to sin^4
 		% The check for macroBeamCheckAngle removes intercepts from CALCS if the
 		% intercept angle is less than macroBeamCheckAngle.
+
 		macroBeamCheckAngle = atan(tand(5));
-		nBeamIntercepts = 0.0;
+		nBeamIntercepts = 0;
 		for i = 1: nBeams-1
 			for j = i+1: nBeams
 				nBeamIntercepts = nBeamIntercepts + 1;
@@ -240,5 +238,5 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 			end
 % 			keyboard
 		end % nansum (interceptWeights) > 0.0
-	end %  nBeams > 3
+	end %  nBeams > 1
 end
