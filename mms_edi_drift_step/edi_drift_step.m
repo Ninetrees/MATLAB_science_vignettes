@@ -1,17 +1,17 @@
 function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_step ( ...
 	obsID, ...
 	B_t2k, ...
-	B_dmpa, ...
-	gd_virtual_dmpa, ...
-	gd_fv_dmpa, ...
+	B_sdcs, ...
+	gd_virtual_sdcs, ...
+	gd_fv_sdcs, ...
 	gd_ID );
 
 	myLibScienceConstants
 	global plot_beams rotation_method sinx_wt_Q_xovr use_v10502
 % 	disp 'entering edi_drift_step' % debug
 
-	B2n  = norm (B_dmpa, 2);
-	Bu   = B_dmpa / B2n;
+	B2n  = norm (B_sdcs, 2);
+	Bu   = B_sdcs / B2n;
 
 	switch rotation_method
 		% Method 1 ________________________________________________________________
@@ -24,15 +24,15 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 				-r(3)  0.0   r(1);
 				 r(2) -r(1)  0.0 ];
 			cosTheta = Bu (3); % dot (Bu, DMPAz): ||OCSz|| = ||Bu|| = 1; % Always Bu (3)
-			DMPA2BPP  = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2));
+			SDCS2BPP  = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2));
 
 		% Method 2 ________________________________________________________________
 		case 2
-			DMPA2BPPy = [ 0.0; 1.0; 0.0 ];
-			DMPA2BPPx = cross (DMPA2BPPy, Bu);
-			DMPA2BPPx = DMPA2BPPx / norm (DMPA2BPPx, 2);
-			DMPA2BPPy = cross (Bu, DMPA2BPPx);
-			DMPA2BPP  = [ DMPA2BPPx'; DMPA2BPPy'; Bu' ]
+			SDCS2BPPy = [ 0.0; 1.0; 0.0 ];
+			SDCS2BPPx = cross (SDCS2BPPy, Bu);
+			SDCS2BPPx = SDCS2BPPx / norm (SDCS2BPPx, 2);
+			SDCS2BPPy = cross (Bu, SDCS2BPPx);
+			SDCS2BPP  = [ SDCS2BPPx'; SDCS2BPPy'; Bu' ];
 
 		% Method 3 ________________________________________________________________
 		otherwise
@@ -40,14 +40,14 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 			keyboard
 	end % switch
 
-	B_bpp = DMPA2BPP * B_dmpa
+	B_bpp = SDCS2BPP * B_sdcs;
 	% OR
 	B_bpp = [ 0.0; 0.0; B2n ];
 
 	% -~-~-~-~-~-~-~-~-~
 	% Rotate GDU positions and firing vectors for each GDU into BPP
-	gd_virtual_bpp = DMPA2BPP * gd_virtual_dmpa
-	gd_fv_bpp      = DMPA2BPP * gd_fv_dmpa
+	gd_virtual_bpp = SDCS2BPP * gd_virtual_sdcs;
+	gd_fv_bpp      = SDCS2BPP * gd_fv_sdcs;
 
 	% -~-~-~-~-~-~-~-~-~
 	% Find the most probable beam convergence for the drift step virtual source S*
@@ -59,8 +59,8 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 	% slope and y-intercept. After processing all the beams, we'll calculate the intersections.
 	% y = mx + b => m = dy/dx =; b = y - m*x, where x,y = GDU pos
 
-	gd_m_bpp = zeros (1, size (gd_virtual_dmpa, 2), 'double');
-	gd_b_bpp = zeros (1, size (gd_virtual_dmpa, 2), 'double');
+	gd_m_bpp = zeros (1, size (gd_virtual_sdcs, 2), 'double');
+	gd_b_bpp = zeros (1, size (gd_virtual_sdcs, 2), 'double');
 
 	% -~-~-~-~-~-~-~-~-~
 	% A gd12 beam originates in gun 1 and is detected in det 2.
@@ -96,8 +96,8 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 				disp ( sprintf ('n iParallel: %2d of %2d\n', length(iParallel), length(gd_m_bpp)) )
 				gd_m_bpp (igd_m_bpp_sorted (iParallel)) = [];
 				gd_b_bpp (igd_m_bpp_sorted (iParallel)) = [];
-				gd_virtual_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
-				gd_fv_dmpa (:, igd_m_bpp_sorted (iParallel)) = [];
+				gd_virtual_sdcs (:, igd_m_bpp_sorted (iParallel)) = [];
+				gd_fv_sdcs (:, igd_m_bpp_sorted (iParallel)) = [];
 				gd_ID (igd_m_bpp_sorted (iParallel)) = [];
 				gd_virtual_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
 				gd_fv_bpp (:, igd_m_bpp_sorted (iParallel)) = [];
@@ -190,7 +190,7 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 % keyboard
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
-			virtualSource_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
+			S_star_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
 			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
 			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
 % keyboard
@@ -205,12 +205,12 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 			% This should be E = B x v, but B, v are swapped here because we need the real drift step (drift velocity),
 			% not the virtual source, S*. See relevant publications on Cluster drift step
 			% and 'EDI_beams_and_virtual_source_demo_0101.m'.
-			E_bpp = cross (virtualSource_bpp, B_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
-			driftStep     = -(DMPA2BPP' * virtualSource_bpp);
+			E_bpp = cross (S_star_bpp, B_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
+			driftStep     = -(SDCS2BPP' * S_star_bpp);
 			dUncertainty  = [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0];
-			% Possible future? dUncertainty  = (DMPA2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
+			% Possible future? dUncertainty  = (SDCS2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
 			driftVelocity = driftStep / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
-			drift_E       = (DMPA2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
+			drift_E       = (SDCS2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
 
 			dsQualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
 			if dsQualityWeight > sinx_wt_Q_xovr(2)
@@ -230,9 +230,9 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 					gd_ID, ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
-					B_dmpa, ...
-					virtualSource_bpp, ...
-					DMPA2BPP, ...
+					B_sdcs, ...
+					S_star_bpp, ...
+					SDCS2BPP, ...
 					GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
 					P0, dsQuality);
 			end

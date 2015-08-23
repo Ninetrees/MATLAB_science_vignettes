@@ -29,7 +29,7 @@
 % plot_dots         ~ Plot dots at beam intersections that are used in final drift step
 %                     calculations.
 %                   ~ Requires plot_beams
-% plot_edi_E_dmpa   ~ Plot E-field from CDF file to compare with edi_drift_step (inactive).
+% plot_edi_E_sdcs   ~ Plot E-field from CDF file to compare with edi_drift_step (inactive).
 % plot_summary      ~ Plot the summary plot (B, EDP E, drift step E, Quality, Quality histo).
 % plot_sinx_weights ~ Plot the weighting function and quality crossover points.
 % save_beam_plots   ~ Saves each 5s beam set to files.
@@ -42,8 +42,11 @@
 % iVarName is an index to VarName
 % iiVarName is an index to an index to VarName; e.g., VarName (iVarName (iiVarName))
 % nVarName is the number of elements in VarName
+% _sdcs <~~~~<< is 'some despun coord system'. It stands for any that is useful.
 % _dn  indicates a MATLAB datenum variable
 % _t2k indicates a CDF TT2000 variable
+% u or _u is a unit vector; _u used for clarity when needed
+% 2n indicates a 2-norm result.
 %
 % MATLAB release(s) MATLAB 8.3.0.532 (R2014a)
 % Required Products None
@@ -52,6 +55,11 @@
 %
 % History:
 % ISA: intersection angle
+% 2015-09-?? ~ v010600:
+%  ~ important !!! notes about variable naming conventions, UPDATED
+%  ~ change local, not CDF, vars _dmpa to _sdcs <~~~~<<
+%  ~ set minimum number of beams to use at 2
+%
 % 2015-08-11 ~ v010506:
 %  ~ minor internal docs
 %
@@ -131,11 +139,11 @@ format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.05.05';
+global dotVersion;        dotVersion        = 'v1.06.00';
 global pause_each_plot;   pause_each_plot   = false;   % Plots are not visible if they are not paused
 global plot_beams;        plot_beams        = false;
 global plot_dots;         plot_dots         = false;
-global plot_edi_E_dmpa;   plot_edi_E_dmpa   = false;
+global plot_edi_E_sdcs;   plot_edi_E_sdcs   = false;
 global plot_summary;      plot_summary      = true;
 global plot_sinx_weights; plot_sinx_weights = false;
 global rotation_method;   rotation_method   = 2;      % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
@@ -158,8 +166,8 @@ dsQuality     = zeros (1, nB_recs, 'uint8');
 % for each B interval, there are EDI records indexed to B:EDI :: 1:many
 % Here we look at each B record, find the corresponding EDI records, and filter.
 
-disp 'looping over edi_B_dmpa'
-for B_recnum = 1: size (edi_B_dmpa, 2)
+disp 'looping over edi_B_sdcs'
+for B_recnum = 1: size (edi_B_sdcs, 2)
 % 	sprintf (' processing B_recnum %d', B_recnum)
 	% specific date-time request to compare w Matt's plot
 	% MMS2 2015-05-09 16:08:35 - 16:08:40
@@ -172,11 +180,11 @@ for B_recnum = 1: size (edi_B_dmpa, 2)
 
 	% keyboard
 	if (length (iB_xref2_edi) > 1) % More than 1 beam
-		B_dmpa = edi_B_dmpa (1:3, B_recnum)
+		B_sdcs = edi_B_sdcs (1:3, B_recnum);
 		B_t2k  = edi_BdvE_t2k (B_recnum);
 
-		gd_virtual_dmpa = edi_gd_virtual_dmpa (:, iB_xref2_edi);
-		gd_fv_dmpa      = edi_gd_fv_dmpa      (:, iB_xref2_edi);
+		gd_virtual_sdcs = edi_gd_virtual_sdcs (:, iB_xref2_edi);
+		gd_fv_sdcs      = edi_gd_fv_sdcs      (:, iB_xref2_edi);
 		gd_ID           = edi_gd_ID           (:, iB_xref2_edi);
 
 		[ driftStep(:, B_recnum), ...
@@ -185,9 +193,9 @@ for B_recnum = 1: size (edi_B_dmpa, 2)
 		  drift_E(:, B_recnum), dsQuality(:, B_recnum) ] = edi_drift_step ( ...
 			obsID, ...
 			B_t2k, ...
-			B_dmpa, ...
-			gd_virtual_dmpa, ...
-			gd_fv_dmpa, ...
+			B_sdcs, ...
+			gd_virtual_sdcs, ...
+			gd_fv_sdcs, ...
 			gd_ID );
 	else
 		drift_E (:, B_recnum) = [ NaN; NaN; NaN ];
@@ -198,10 +206,10 @@ end % for B_recnum = 1: ...
 if plot_summary
 	set (0, 'DefaultFigureVisible', 'on')
 
-	[ hAxis hEDP_dce_xyz_dsl hEDI_B ] = plotyy ( ...
-		edp_dn, edp_dce_xyz_dsl(:, 1:2), ...
-		BdvE_dn, edi_B_dmpa (1:3, :)', @plot, @plot );
-	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_dsl;
+	[ hAxis hEDP_dce_xyz_sdcs hEDI_B ] = plotyy ( ...
+		edp_dn, edp_dce_xyz_sdcs(:, 1:2), ...
+		BdvE_dn, edi_B_sdcs (1:3, :)', @plot, @plot );
+	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_sdcs;
 	hEDI_E_B_plot (3:5) = hEDI_B;
 
 	% retained for full-width data plot
@@ -238,17 +246,17 @@ if plot_summary
 	% datetick ()
 	hEDI_E_B_plot (6:7) = [ hDrift_Ex, hDrift_Ey];
 
-	iedi_E_dmpa_fillVal = find (edi_E_dmpa (1,:) < -1.0e+29);
-	if ~isempty (iedi_E_dmpa_fillVal)
-		edi_E_dmpa (:, iedi_E_dmpa_fillVal) = NaN;
+	iedi_E_sdcs_FillVal = find (edi_E_sdcs (1,:) < -1.0e+29);
+	if ~isempty (iedi_E_sdcs_FillVal)
+		edi_E_sdcs (:, iedi_E_sdcs_FillVal) = NaN;
 	end
 
 	hEDI_E_B_plot (8) = bar (BdvE_dn, dsQuality, 0.1, 'w', 'EdgeColor', myTan);
 
-% 	hcdf_Ex = plot (BdvE_dn, edi_E_dmpa (1,:), ...
+% 	hcdf_Ex = plot (BdvE_dn, edi_E_sdcs (1,:), ...
 % 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myDarkRed, 'MarkerEdgeColor', myDarkRed, 'MarkerSize', 6.0);
 
-% 	hcdf_Ey = plot (BdvE_dn, edi_E_dmpa (2,:), ...
+% 	hcdf_Ey = plot (BdvE_dn, edi_E_sdcs (2,:), ...
 % 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myOrange, 'MarkerEdgeColor', myOrange, 'MarkerSize', 6.0);
 % 	hEDI_E_B_plot (8:9) = [ hcdf_Ex, hcdf_Ey];
 
