@@ -55,10 +55,12 @@
 %
 % History:
 % ISA: intersection angle
-% 2015-09-?? ~ v010600:
-%  ~ important !!! notes about variable naming conventions, UPDATED
-%  ~ change local, not CDF, vars _dmpa to _sdcs <~~~~<<
-%  ~ set minimum number of beams to use at 2
+% 2015-09-04 ~ v010600:
+%  ~ Important !!! Notes about variable naming conventions, UPDATED.
+%  ~ Change local, not CDF, vars _dmpa to _sdcs <~~~~<<.
+%  ~ Set minimum number of beams to use at 2..
+%  ~ Correct EDP data call to use obsID.
+%  ~ Change large plot types from lines to dots.
 %
 % 2015-08-11 ~ v010506:
 %  ~ minor internal docs
@@ -128,25 +130,19 @@ clc             % clear the command window
 clear all
 close all       % close all figures
 
-% allVars = whos
-% persistentVars = allVars ([allVars.global])
-% persistentVars = allVars ([allVars.persistent])
-% persistentVarNames = {persistentVars.name}
-% clear (persistentVarNames {:})
-
 format compact
 format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
 global dotVersion;        dotVersion        = 'v1.06.00';
-global pause_each_plot;   pause_each_plot   = false;   % Plots are not visible if they are not paused
+global pause_each_plot;   pause_each_plot   = false; % Plots are not visible if they are not paused
 global plot_beams;        plot_beams        = false;
 global plot_dots;         plot_dots         = false;
-global plot_edi_E_sdcs;   plot_edi_E_sdcs   = false;
+global plot_edi_E_sdcs;   plot_edi_E_sdcs   = false; % deprecated
 global plot_summary;      plot_summary      = true;
 global plot_sinx_weights; plot_sinx_weights = false;
-global rotation_method;   rotation_method   = 2;      % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
+global rotation_method;   rotation_method   = 2;     % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
 global save_beam_plots;   save_beam_plots   = false;
 sinx_wt_Q_xovr_angles                       = [ 8.0 30 ];
 global sinx_wt_Q_xovr;    sinx_wt_Q_xovr    = sind (sinx_wt_Q_xovr_angles).^4.0; % breakpoints for quality ranges for sin^x weighting
@@ -208,66 +204,74 @@ if plot_summary
 
 	[ hAxis hEDP_dce_xyz_sdcs hEDI_B ] = plotyy ( ...
 		edp_dn, edp_dce_xyz_sdcs(:, 1:2), ...
-		BdvE_dn, edi_B_sdcs (1:3, :)', @plot, @plot );
-	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_sdcs;
-	hEDI_E_B_plot (3:5) = hEDI_B;
+		BdvE_dn, edi_B_sdcs (1:3, :), @plot, @plot );
 
 	% retained for full-width data plot
-	% plotDateMin = double (min (min(edp_dn), min(BdvE_dn)));
-	% plotDateMax = double (max (max(edp_dn), max(BdvE_dn)));
+	plotDateMin = double (min (min(edp_dn), min(BdvE_dn)));
+	plotDateMax = double (max (max(edp_dn), max(BdvE_dn)));
 
-	plotDateMin = datenum ('2015-05-09 15:40:00'); % datestr (plotDateMin, 'yyyy-mm-dd HH:MM:SS');
-	plotDateMax = datenum ('2015-05-09 16:40:00');
+	% 	plotDateMin = datenum ('2015-05-09 15:40:00'); % datestr (plotDateMin, 'yyyy-mm-dd HH:MM:SS');
+	% 	plotDateMax = datenum ('2015-05-09 16:40:00');
 
 	xlim ( [ plotDateMin plotDateMax ] )
 	xlabel (sprintf ( '%s', datestr( spdftt2000todatenum (edp_t2k(1)), 'yyyy-mm-dd') ))
-	set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax])
+	set (gca, 'XTick', [ plotDateMin: datenum_1hr: plotDateMax])
 	datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
 	set (hAxis(2), 'XTick', [])
 
-	ylim ([ -4 4 ])
+% 	ylim ([ -4 4 ])
 	ylabel (hAxis (1),'mV-m^-^1')
 	ylabel (hAxis (2),'nT')
 
 	grid on
 	hold on
 
-	set (hEDI_B(1), 'Color', MMS_plotColorx);
-	set (hEDI_B(2), 'Color', MMS_plotColory);
-	set (hEDI_B(3), 'Color', MMS_plotColorz);
+	EDI_E_B_plotColors = [ ...
+		myDarkTeal; myGrassGreen; ...
+		myDarkBlue; myDarkGreen; ...
+		myLightGrey6; ...
+		MMS_plotColorx; MMS_plotColory; MMS_plotColorz ];
+
+	set (hEDP_dce_xyz_sdcs(1), 'Color', myDarkTeal, ...
+		'LineStyle', 'none', 'Marker', 'o', ...
+		'MarkerFaceColor', myDarkTeal, 'MarkerEdgeColor', myDarkTeal, 'MarkerSize', 2.0);
+	set (hEDP_dce_xyz_sdcs(2), 'Color', myGrassGreen, ...
+		'LineStyle', 'none', 'Marker', 'o', ...
+		'MarkerFaceColor', myGrassGreen, 'MarkerEdgeColor', myGrassGreen, 'MarkerSize', 2.0);
+
+	set (hEDI_B(1), 'Color', MMS_plotColorx, ...
+		'LineStyle', 'none', 'Marker', 'o', ...
+		'MarkerFaceColor', MMS_plotColorx, 'MarkerEdgeColor', MMS_plotColorx, 'MarkerSize', 1.0);
+	set (hEDI_B(2), 'Color', MMS_plotColory, ...
+		'LineStyle', 'none', 'Marker', 'o', ...
+		'MarkerFaceColor', MMS_plotColory, 'MarkerEdgeColor', MMS_plotColory, 'MarkerSize', 1.0);
+	set (hEDI_B(3), 'Color', MMS_plotColorz, ...
+		'LineStyle', 'none', 'Marker', 'o', ...
+		'MarkerFaceColor', MMS_plotColorz, 'MarkerEdgeColor', MMS_plotColorz, 'MarkerSize', 1.0);
 
 	hDrift_Ex = plot (BdvE_dn, drift_E (1,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
-		'MarkerFaceColor', myReddishPurple, 'MarkerEdgeColor', myReddishPurple, 'MarkerSize', 3.0);
+		'MarkerFaceColor', myDarkBlue, 'MarkerEdgeColor', myDarkBlue, 'MarkerSize', 3.0);
 
 	hDrift_Ey = plot (BdvE_dn, drift_E (2,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
-		'MarkerFaceColor', myOrange, 'MarkerEdgeColor', myOrange, 'MarkerSize', 3.0);
-	% datetick ()
-	hEDI_E_B_plot (6:7) = [ hDrift_Ex, hDrift_Ey];
+		'MarkerFaceColor', myDarkGreen, 'MarkerEdgeColor', myDarkGreen, 'MarkerSize', 3.0);
 
-	iedi_E_sdcs_FillVal = find (edi_E_sdcs (1,:) < -1.0e+29);
-	if ~isempty (iedi_E_sdcs_FillVal)
-		edi_E_sdcs (:, iedi_E_sdcs_FillVal) = NaN;
-	end
+% 	hQuality_plot = bar (BdvE_dn, dsQuality, 0.1, 'w', 'EdgeColor', 'white'); % myLightGrey6
 
-	hEDI_E_B_plot (8) = bar (BdvE_dn, dsQuality, 0.1, 'w', 'EdgeColor', myTan);
-
-% 	hcdf_Ex = plot (BdvE_dn, edi_E_sdcs (1,:), ...
-% 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myDarkRed, 'MarkerEdgeColor', myDarkRed, 'MarkerSize', 6.0);
-
-% 	hcdf_Ey = plot (BdvE_dn, edi_E_sdcs (2,:), ...
-% 		'LineStyle', 'none', 'Marker', '*', 'MarkerFaceColor', myOrange, 'MarkerEdgeColor', myOrange, 'MarkerSize', 6.0);
-% 	hEDI_E_B_plot (8:9) = [ hcdf_Ex, hcdf_Ey];
-
-% 	hEDI_E_B_plot (8:9) = [ hDrift_Ex, hDrift_Ey];
+	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_sdcs;
+	hEDI_E_B_plot (3:4) = [ hDrift_Ex, hDrift_Ey ];
+% 	hEDI_E_B_plot (5)   = hQuality_plot;
+	hEDI_E_B_plot (6:8) = hEDI_B;
 
 	title ([' EDI drift step ', dotVersion, ': MMS', obsID, ' SDP 2D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'])
 
-% 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'CDF E_x', 'CDF E_y', 'Quality', 'B_x', 'B_y', 'B_z');
-% 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
-% 	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'B_x', 'B_y', 'B_z');
-	legend ('SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
+	hLegend = legend (hEDI_E_B_plot, 'SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
+	hText = findobj (hLegend, 'type', 'text');
+	nhText = size (hText,1);
+	for i = 1: nhText
+		set (hText (nhText-i+1), 'color', EDI_E_B_plotColors (i,:)); % Believe it or not, hText is in reverse order!!
+	end
 
 	hold off
 
@@ -292,4 +296,3 @@ if plot_sinx_weights
 	ylabel ('Weight')
 	hold off
 end % if plot_sinx_weights
-

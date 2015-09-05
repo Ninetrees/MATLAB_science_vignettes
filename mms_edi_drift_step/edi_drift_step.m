@@ -191,7 +191,7 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
 			S_star_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
-			gyroFrequency = (q * B2n * nT2T) / e_mass; % (SI) (|q| is positive here.)
+			gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) (|q| is positive here.)
 			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
 % keyboard
 			% vE = v in direction of E; T = gyroPeriod

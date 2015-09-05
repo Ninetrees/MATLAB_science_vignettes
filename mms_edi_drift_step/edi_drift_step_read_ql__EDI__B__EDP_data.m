@@ -49,6 +49,42 @@ mms2_edi_slow_ql_efield_20150509_v0.1.4.cdf
 	'B_Labl_Ptr'                     [1x2 double] [   3] 'char'   'T/'  'Full' 'None' [0] '  '
 	'vg_labl_vname'                  [1x2 double] [   3] 'char'   'T/'  'Full' 'None' [0] ' '
 
+mms1_edi_srvy_ql_efield-1sec_20150822_v0.2.3.cdf
+ 'Epoch'                           [1x2 double] [13207] 'tt2000' 'T/'  'Full' 'None' [0] [-9223372036854775808] [-9.223372036854776e+18] [4.784400671840000e+17] [1.582977668184000e+18]
+ 'Epoch_delta_plus'                [1x2 double] [    1] 'tt2000' 'F/'  'Full' 'None' [0] [-9223372036854775808] [-9.223372036854776e+18] [                    0] [2.000000000000000e+10]
+ 'mms1_edi_E_dmpa'                 [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_v_ExB_dmpa'             [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_d_dmpa'                 [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_E_bc_dmpa'              [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_v_ExB_bc_dmpa'          [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_d_bc_dmpa'              [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_d_std_bc_dmpa'          [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [                -1000] [                 1000]
+ 'mms1_edi_quality_bc'             [1x2 double] [13207] 'uint8'  'T/'  'Full' 'None' [0] [                 254] [                   255] [                    0] [                    3]
+ 'mms1_edi_B_dmpa'                 [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_B_std_dmpa'             [1x2 double] [13207] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [                -1000] [                 1000]
+ 'mms1_edi_recnum'                 [1x2 double] [13207] 'uint32' 'T/'  'Full' 'None' [0] [          4294967294] [ 4.294967295000000e+09] [                    0] [2.147483647000000e+09]
+ 'mms1_edi_recnum_gd12'            [1x2 double] [53201] 'uint32' 'T/'  'Full' 'None' [0] [          4294967294] [ 4.294967295000000e+09] [                    0] [2.147483647000000e+09]
+ 'mms1_edi_recnum_gd21'            [1x2 double] [51323] 'uint32' 'T/'  'Full' 'None' [0] [          4294967294] [ 4.294967295000000e+09] [                    0] [2.147483647000000e+09]
+ 'epoch_gd12_beam'                 [1x2 double] [53201] 'tt2000' 'T/'  'Full' 'None' [0] [-9223372036854775808] [-9.223372036854776e+18] [4.784400671840000e+17] [1.582977668184000e+18]
+ 'epoch_gd21_beam'                 [1x2 double] [51323] 'tt2000' 'T/'  'Full' 'None' [0] [-9223372036854775808] [-9.223372036854776e+18] [4.784400671840000e+17] [1.582977668184000e+18]
+ 'mms1_edi_pos_virtual_gun1_dmpa'  [1x2 double] [53201] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [                  -20] [                   20]
+ 'mms1_edi_pos_virtual_gun2_dmpa'  [1x2 double] [51323] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [                  -20] [                   20]
+ 'mms1_edi_fv_gd12_dmpa'           [1x2 double] [53201] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_fv_gd21_dmpa'           [1x2 double] [51323] 'single' 'T/T' 'Full' 'None' [0] [      -1.0000000e+30] [-9.999999848243207e+30] [              -100000] [               100000]
+ 'mms1_edi_tof_gd12'               [1x2 double] [53201] 'uint8'  'T/'  'Full' 'None' [0] [                 254] [                   255] [                    0] [                   64]
+ 'mms1_edi_tof_gd21'               [1x2 double] [51323] 'uint8'  'T/'  'Full' 'None' [0] [                 254] [                   255] [                    0] [                   64]
+ 'mms1_edi_beam_quality_gd12'      [1x2 double] [53201] 'uint8'  'T/'  'Full' 'None' [0] [                 254] [                   255] [                    0] [                    3]
+ 'mms1_edi_beam_quality_gd21'      [1x2 double] [51323] 'uint8'  'T/'  'Full' 'None' [0] [                 254] [                   255] [                    0] [                    3]
+ 'E_Labl_Ptr'                      [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '  '                                         []                      []                      []
+ 'v_Labl_Ptr'                      [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '  '                                         []                      []                      []
+ 'd_Labl_Ptr'                      [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] ' '                                          []                      []                      []
+ 'B_Labl_Ptr'                      [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '  '                                         []                      []                      []
+ 'd_std_Labl_Ptr'                  [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '  '                                         []                      []                      []
+ 'B_std_Labl_Ptr'                  [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '   '                                        []                      []                      []
+ 'fv_Labl_Ptr'                     [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] '   '                                        []                      []                      []
+ 'vg_Labl_Ptr'                     [1x2 double] [    1] 'char'   'F/T' 'Full' 'None' [0] ' '                                          []                      []                      []
+
+
 				 0         0         0         0         0
 mms2_edp_comm_ql_dce2d_20150509120000_v0.1.0.cdf
   'mms2_edp_dce_epoch'      [1x2 double] [2764735] 'tt2000' 'T/'  'Full' 'None'   [    0] [-9223372036854775808]
@@ -149,10 +185,15 @@ if ~isequal (mms_ql__EDI__BdvE__dataFile, 0) % then a valid [we hope] file selec
 	iBeqFillVal = find (edi_B_sdcs == edi_B_sdcs_FillVal);
 	iBeqBad = union (iB_eq_NaN, iBeqFillVal);
 	% It's OK to delete these 'bad' BdvE records, because edi_BdvE_recnum keeps track of the remainder
-	edi_BdvE_t2k (iBeqBad   )    = [];
+	edi_BdvE_t2k    (iBeqBad   ) = [];
 	edi_B_sdcs      (iBeqBad, :) = [];
 	edi_BdvE_recnum (iBeqBad, :) = [];
 	% At this point, all BdvE, tt2000, edi_BdvE_recnum records are in sync
+
+	iedi_E_sdcs_FillVal = find (edi_E_sdcs (1,:) == edi_B_sdcs_FillVal);
+	if ~isempty (iedi_E_sdcs_FillVal)
+		edi_E_sdcs (:, iedi_E_sdcs_FillVal) = NaN;
+	end
 
 	% Now is the time to change from nx3 data to 3xn.
 	edi_gd_beam_t2k     = [ edi_gd12_beam_t2k'        edi_gd21_beam_t2k' ];
@@ -197,7 +238,7 @@ if ~isequal (mms_ql__EDI__BdvE__dataFile, 0) % then a valid [we hope] file selec
 		% ~~~~~~~~~~~~~~~~~~~ DC E-field
 		edp_t2k = spdfcdfread (mms_ql__EDP_data, ...
 			'CombineRecords',        true, ...
-			'Variable',              'mms2_edp_dce_epoch', ...
+			'Variable',              ['mms', obsID, '_edp_dce_epoch'], ...
 			'ConvertEpochToDatenum', false, ...
 			'KeepEpochAsIs',         true);
 		% Electric field in DSL coordinates (DSL ~= DMPA ~= DBCS)
@@ -205,9 +246,9 @@ if ~isequal (mms_ql__EDI__BdvE__dataFile, 0) % then a valid [we hope] file selec
 			'CombineRecords',        true, ...
 			'Variable',              ['mms', obsID, '_edp_dce_xyz_dsl']);
 
-		idceFillVal = find (edp_dce_xyz_sdcs (:, 1) < edp_dce_fillVal);
+		idceFillVal = find (edp_dce_xyz_sdcs (:, 1) == edp_dce_fillVal);
 		edp_dce_xyz_sdcs (idceFillVal, :) = [];
-		edp_t2k      (idceFillVal)    = [];
+		edp_t2k          (idceFillVal)    = [];
 		edp_dn = spdftt2000todatenum (edp_t2k);
 % 		disp 'Date range of edp_t2k'
 % 		[ datestr(spdftt2000todatenum(edp_t2k(1)),   'yyyy-mm-dd HH:MM:ss'), ' ',...

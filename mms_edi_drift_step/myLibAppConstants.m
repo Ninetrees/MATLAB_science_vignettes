@@ -3,6 +3,8 @@
 % http://www.rapidtables.com/convert/color/rgb-to-hex.htm
 % http://www.acsu.buffalo.edu/~dbertuca/ada/color.html
 
+% disp 'myLibAppConstants'
+
 myBlack         = [   0.0,   0.0,   0.0 ]        ; %
 myBlue          = [   0.0, 114.0, 178.0 ] / 255.0; %
 myDarkBlue      = [  23.0,  42.0, 135.0 ] / 255.0; %
@@ -50,7 +52,7 @@ MMS_plotLinex   = '-';
 MMS_plotLiney   = '--';
 MMS_plotLinez   = ':';
 
-DefaultAxesColors = [ myDarkBlue; myDarkRed; myDarkGreen; myOrange; myGrassGreen; myDarkTeal ];
+% DefaultAxesColors = [ myDarkBlue; myDarkRed; myDarkGreen; myOrange; myGrassGreen; myDarkTeal ];
 DefaultAxesColors = [ MMS_plotColorx; MMS_plotColory; MMS_plotColorz; myOrange; myGrassGreen; myDarkTeal ];
 set (groot, 'DefaultAxesColorOrder', DefaultAxesColors);
 set (groot, 'DefaultAxesLineStyleOrder', '-|--|:|-.');

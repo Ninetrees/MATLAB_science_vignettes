@@ -112,18 +112,18 @@ function varInfo = CDF_varInfo (fileInfo, varName)
 				warning ('CDF_varInfo: Variable "%s" FILLVAL not found in "%s".', varName, fileInfo.Filename)
 			end
 
-			[nLABLAXIS, ~] = size (fileInfo.VariableAttributes.LABLAXIS);
-			LABLAXIS_found = false;
-			for iLABLAXIS = 1 : nLABLAXIS
-				if strcmp (fileInfo.VariableAttributes.LABLAXIS {iLABLAXIS, 1}, varName)
-					varInfo.AxisLabel  = fileInfo.VariableAttributes.LABLAXIS {iLABLAXIS, 2};
-					LABLAXIS_found = true;
-				end
-			end
-			if ~LABLAXIS_found
-				varInfo.AxisLabel = [];
+% 			[nLABLAXIS, ~] = size (fileInfo.VariableAttributes.LABLAXIS);
+% 			LABLAXIS_found = false;
+% 			for iLABLAXIS = 1 : nLABLAXIS
+% 				if strcmp (fileInfo.VariableAttributes.LABLAXIS {iLABLAXIS, 1}, varName)
+% 					varInfo.AxisLabel  = fileInfo.VariableAttributes.LABLAXIS {iLABLAXIS, 2};
+% 					LABLAXIS_found = true;
+% 				end
+% 			end
+% 			if ~LABLAXIS_found
+% 				varInfo.AxisLabel = [];
 % 				warning ('CDF_varInfo: Variable "%s" LABLAXIS not found in "%s".', varName, fileInfo.Filename)
-			end
+% 			end
 
 			[nSI_CONVERSION, ~] = size (fileInfo.VariableAttributes.SI_CONVERSION);
 			SI_Conversion_found = false;
