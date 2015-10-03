@@ -1,18 +1,51 @@
-function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_step ( ...
-	obsID, ...
-	B_t2k, ...
-	B_sdcs, ...
-	gd_virtual_sdcs, ...
-	gd_fv_sdcs, ...
-	gd_ID );
+function [ ...
+		d_bpp, ...
+		d_SD_bpp, ...
+		d_CI_bpp, ...
+		d_sdcs, ...
+		d_SD_sdcs, ...
+		d_CI_sdcs, ...
+		d_quality, ...
+		v_sdcs, ...
+		E_sdcs, ...
+		E_sdcs_unc ...
+	] = edi_drift_step ( ...
+		obsID, ...
+		B_t2k, ...
+		B_sdcs, ...
+		B_SD_sdcs, ...
+		gd_virtual_sdcs, ...
+		gd_fv_sdcs, ...
+		gd_ID ...
+	);
 
 	myLibScienceConstants
 	global plot_beams rotation_method sinx_wt_Q_xovr use_v10502
 % 	disp 'entering edi_drift_step' % debug
 
 	B2n  = norm (B_sdcs, 2);
+	% The first step in propagating uncertainty to the E-field starts with B2n.
+	% The 2norm is the sqrt of the sum of the squares.
+	% Rule 1: Note use of fractional uncertainties.
+	% Rule 2: Uncertainties for summed terms add uncertainty in quadrature.
+	% Rule 3: Uncertainties for products sum fractional uncertainties (_frunc).
+	% Rule 4: If q = x^n, then q_frunc = |n| * x_frunc.
+	% Rule 5: If q = Cx, where C has no uncertainty, q_unc = |C| * x_unc (NOT frunc).
+	% Rule 6: Unc in functions of one variable: q_unc = |dq/dx| * x_unc.
+
+	% Here each Bx|y|z is squared, then those squares are summed, then sqrt (sum).
+	B_frunc   = abs (B_SD_sdcs ./ B_sdcs);
+	Bx_frunc  = 2.0 * B_frunc (1);
+	By_frunc  = 2.0 * B_frunc (2);
+	Bz_frunc  = 2.0 * B_frunc (3);
+	B2n_frunc = sqrt (Bx_frunc^2 + By_frunc^2 + Bz_frunc^2);
+	B2n_unc   = B2n_frunc * B2n; % Total uncertainty in B2n
+% 	disp 'B stats' % V&V
+% 	[ B_sdcs B_SD_sdcs [B2n_unc;0;0] ] % V&V
+
 	Bu   = B_sdcs / B2n;
 
+	% We have not decided how to handle the uncertainty of the rotation matrix, 2015-10-01
 	switch rotation_method
 		% Method 1 ________________________________________________________________
 		case 1
@@ -39,8 +72,9 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 			disp 'rotation method not implemented yet'
 			keyboard
 	end % switch
+	BPP2SDCS = SDCS2BPP';
 
-	B_bpp = SDCS2BPP * B_sdcs;
+	% B_bpp = SDCS2BPP * B_sdcs; % V&V
 	% OR
 	B_bpp = [ 0.0; 0.0; B2n ];
 
@@ -74,7 +108,7 @@ function [ driftStep dUncertainty driftVelocity drift_E dsQuality] = edi_drift_s
 		iParallel = [0];
 		while ~isempty (iParallel)
 			gd_m_bpp_deg = atand (gd_m_bpp); % slopes in degrees
-disp (sprintf ('%7.1f ', gd_m_bpp_deg))
+
 			% sort the slopes from lowest to highest, mono
 			[gd_m_bpp_sorted, igd_m_bpp_sorted] = sort (gd_m_bpp_deg);
 			[gd_m_bpp_sorted; gd_m_bpp_deg(igd_m_bpp_sorted)];
@@ -113,13 +147,13 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 	beamIntercepts   = zeros (2, nBeamIntercepts, 'double');
 	interceptWeights = zeros (1, nBeamIntercepts, 'double');
 
-	driftStep     = [NaN; NaN; NaN];
-	dUncertainty  = [NaN; NaN; NaN];
-	driftVelocity = [NaN; NaN; NaN];
-	drift_E       = [NaN; NaN; NaN];
+	d_bpp    = [NaN; NaN; NaN];
+	d_CI_bpp = [NaN; NaN; NaN];
+	v_sdcs   = [NaN; NaN; NaN];
+	E_sdcs   = [NaN; NaN; NaN];
 
 	nBeamIntercepts  = 0;
-	dsQuality = 0;
+	d_quality = 0;
 	if nBeams > 1 % can't have an intersection with just 1 beam
 
 		% find the intercepts for all beams
@@ -158,24 +192,23 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 % 				end
 			end
 		end
-% interceptAngleDeg = interceptAngle*rad2deg
-% interceptWeights = interceptWeights
-		% This test is only valid if NaN is implements above;
+
+		% This test is only valid if NaN is implemented above;
 		% otherwise, this is always true.
 		interceptWeightsSum = nansum (interceptWeights);
 		if interceptWeightsSum > 0.0
 			% We will check the upper bound, P0=84%, alpha=P1=0.16 ~> +- 0.08 (lower|upper),
 			% so div by 2.0, and pass just the upper bound.
+			% See 'Accuracy, Error, Precision, and Uncertainty.txt'
 			P0 = 0.84;
-			edi_stats_alpha = (1.0 - P0) / 2.0;
-
+			edi_stats_alpha = (1.0 - P0)  / 2.0;
+			z_score = norminv (1 - edi_stats_alpha);
 			% disp 'Two Grubbs tests: x and y'
-			ZConfidenceBounds = norminv (1.0 - (1.0 - P0) / 2.0);
-			[ GrubbsBeamInterceptMean(1,1), GrubbsBeamInterceptStdDev(1,1), GrubbsBeamIntercepts ] = ...
+			[ GrubbsBeamInterceptMean(1,1), GrubbsBeamInterceptSD(1,1), GrubbsBeamIntercepts ] = ...
 				edi_drift_step_Grubbs (beamIntercepts (1,:), interceptWeights, edi_stats_alpha);
 			ibx = find (isnan (GrubbsBeamIntercepts));
 
-			[ GrubbsBeamInterceptMean(2,1), GrubbsBeamInterceptStdDev(2,1), GrubbsBeamIntercepts ] = ...
+			[ GrubbsBeamInterceptMean(2,1), GrubbsBeamInterceptSD(2,1), GrubbsBeamIntercepts ] = ...
 				edi_drift_step_Grubbs (beamIntercepts (2,:), interceptWeights, edi_stats_alpha);
 			iby = find (isnan (GrubbsBeamIntercepts));
 % keyboard
@@ -183,17 +216,26 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 			GrubbsBeamIntercepts = beamIntercepts;
 			GrubbsBeamIntercepts (:, iIntersectXYOutliers) = [];
 
-			nGrubbsBeamIntercepts          = size (GrubbsBeamIntercepts, 2);
-			GrubbsBeamInterceptMean_stdDev = GrubbsBeamInterceptStdDev / sqrt (nGrubbsBeamIntercepts); % x,y mean std dev
+			nGrubbsBeamIntercepts   = size (GrubbsBeamIntercepts, 2);
+			% The uncertainty in S_star_bpp, /// at the 68% conficence level ///
+			% Later, we will adjust this value to a different confidence level
+			GrubbsBeamInterceptSDOM = GrubbsBeamInterceptSD / sqrt (nGrubbsBeamIntercepts);
+
 % 			disp ( sprintf ('nGrubbsBeamIntercepts %4d : GrubbsInterceptMean, uncertainty: (%+7.3f, %+7.3f) (%+7.3f, %+7.3f)', ...
-% 				nGrubbsBeamIntercepts, GrubbsBeamInterceptMean, ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev) ) % debug
+% 				nGrubbsBeamIntercepts, GrubbsBeamInterceptMean, z_score*GrubbsBeamInterceptSDOM) ) % debug
 % keyboard
+
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
-			S_star_bpp = [ GrubbsBeamInterceptMean(1); GrubbsBeamInterceptMean(2); 0.0 ];
-			gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) (|q| is positive here.)
-			gyroPeriod    = (twoPi / gyroFrequency);    % (SI) The result is usually on the order of a few ms
-% keyboard
+			% gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) (|q| is positive here.)
+			gyroFrequency     = q_over_mass_e_nT2T * B2n; % (SI) (|q| is positive here.)
+			gyroFrequency_unc = q_over_mass_e_nT2T * B2n_unc;
+			gyroPeriod        = (twoPi / gyroFrequency);   % (SI) The result is usually on the order of a few ms
+			gyroPeriod_frunc  = twoPi * gyroFrequency_unc / gyroFrequency;
+			gyroPeriod_unc    = gyroPeriod_frunc * gyroPeriod;
+% 			disp 'gyroFreq gyroPeriod stats'
+% 			[ gyroFrequency gyroFrequency_unc gyroPeriod gyroPeriod_unc ] % V&V
+
 			% vE = v in direction of E; T = gyroPeriod
 			% ( vE = d/T ) = ExB/|B|^2 ~> d / T * |B|^2 = ExB --- Pacshmann, 1998, 2001, EDI for Cluster
 			% Cross from the left with B: B x [] = BxExB
@@ -202,24 +244,59 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 			% B x [ d/T * |B|^2 = E * |B|^2 ~> E = B x d/T
 
 			% the virtual source S* is the negative of the real drift step; S* is an imaginary point
-			% This should be E = B x v, but B, v are swapped here because we need the real drift step (drift velocity),
-			% not the virtual source, S*. See relevant publications on Cluster drift step
-			% and 'EDI_beams_and_virtual_source_demo_0101.m'.
-			E_bpp = cross (S_star_bpp, B_bpp) * (1.0e-9 / gyroPeriod); % B_bpp is in nT, and all these calcs are in SI
-			driftStep     = -(SDCS2BPP' * S_star_bpp);
-			dUncertainty  = [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0];
-			% Possible future? dUncertainty  = (SDCS2BPP' * [ZConfidenceBounds*GrubbsBeamInterceptMean_stdDev; 0.0])
-			driftVelocity = driftStep / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
-			drift_E       = (SDCS2BPP' * E_bpp) * 1.0e3; % convert V/m -> mV/m
+			S_star_bpp  = [ GrubbsBeamInterceptMean; 0.0 ];
+			d_bpp       = -S_star_bpp; % Note the minus sign
+			d_SD_bpp    = [GrubbsBeamInterceptSD; 0.0];
+			d_SDOM_bpp  = [GrubbsBeamInterceptSDOM; 0.0];
+			d_bpp_frunc = d_SDOM_bpp ./ d_bpp;
+			% Compute uncertainty (confidence interval CI) = z_score * SDOM
+			d_CI_bpp = z_score * d_SDOM_bpp;
 
-			dsQualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
-			if dsQualityWeight > sinx_wt_Q_xovr(2)
-				dsQuality = 3;
+			% d_bpp is assumed to be zero in BPPz, so the uncertainty is just in x,y
+% 			disp 'd stats'
+% 			[ d_bpp d_SD_bpp d_SDOM_bpp d_CI_bpp ] % V&V
+
+			v_bpp = d_bpp / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
+			v_bpp_frunc = (d_bpp_frunc + gyroPeriod_frunc) * 1.0e-3;
+			v_bpp_unc = v_bpp_frunc .* v_bpp; % V&V
+% 			disp 'v stats'
+% 			[ v_bpp v_bpp_frunc v_bpp_unc ] % V&V
+
+% 			strB_time = datestr (spdftt2000todatenum (B_t2k), 'HH:MM:ss'); % V&V
+% 			disp (sprintf('84%% d_BPP confidence intervals %9s (x, y)= ( %+6.2f, %+6.2f )', ...
+% 				strB_time, d_CI_bpp(1), d_CI_bpp(2)))  % V&V
+
+			% B_bpp is in nT, and all these calcs are in SI
+			% v_sdcs above is in /// km/s ///
+			% convert nT -> T, km/s -> m/s, V/m -> mV/m : 1.0e-9 * 1.0e3 * 1.0e3 ~> 1.0e-3
+			% This should be E = B x v = B x d/t, not the virtual source S*.
+			% See relevant publications on Cluster drift step
+			% and 'EDI_beams_and_virtual_source_demo_0101.m'.
+			% B_bpp = (0, 0, Bz=B2n); v_bpp = (vx, vy, 0)
+			% cross (B_bpp, v_bpp) ~> B2n * [ -v_bpp(2); v_bpp(1); 0.0 ]
+			E_bpp       = [ -v_bpp(2); v_bpp(1); 0.0 ] * (B2n * 1.0e-3);
+			E_bpp_frunc = [ v_bpp_frunc(1)+B2n_frunc; v_bpp_frunc(2)+B2n_frunc; 0.0 ] * 1.0e-3;
+			E_bpp_unc   = E_bpp_frunc .* E_bpp;
+% 			disp 'E stats' % V&V
+% 			[ E_bpp E_bpp_frunc E_bpp_unc ] % V&V
+
+			d_sdcs     = BPP2SDCS * d_bpp;
+			d_SD_sdcs  = abs (BPP2SDCS * d_SD_bpp);
+			d_CI_sdcs  = abs (BPP2SDCS * d_CI_bpp);
+			v_sdcs     = d_sdcs / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
+			E_sdcs     = BPP2SDCS * E_bpp;
+			E_sdcs_unc = abs (BPP2SDCS * E_bpp_unc);
+
+% keyboard
+
+			d_qualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
+			if d_qualityWeight > sinx_wt_Q_xovr(2)
+				d_quality = 3;
 			else
-				if dsQualityWeight > sinx_wt_Q_xovr(1)
-					dsQuality = 2;
+				if d_qualityWeight > sinx_wt_Q_xovr(1)
+					d_quality = 2;
 				else
-					dsQuality = 1;
+					d_quality = 1;
 				end
 			end
 			% -~-~-~-~-~-~-~-~-~
@@ -227,14 +304,14 @@ disp (sprintf ('%7.1f ', gd_m_bpp_deg))
 				edi_drift_step_plot ( ...
 					obsID, ...
 					B_t2k, ...
+					B_sdcs, ...
 					gd_ID, ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
-					B_sdcs, ...
-					S_star_bpp, ...
 					SDCS2BPP, ...
-					GrubbsBeamIntercepts, GrubbsBeamInterceptMean, GrubbsBeamInterceptMean_stdDev, ...
-					P0, dsQuality);
+					S_star_bpp, d_SDOM_bpp, d_CI_bpp, ... % d_SDOM_bpp == S_star_SDOM_bpp
+					GrubbsBeamIntercepts, ...   % for plotting dot on counted intersections
+					P0, z_score, d_quality);
 			end
 % 			keyboard
 		end % nansum (interceptWeights) > 0.0

@@ -21,7 +21,7 @@
 % Optionally saves drift step plots.
 % Optionally produces a summary plot of B, SDP, and drift step E-field.
 % ~~~> global program control flag notes
-% pause_each_plot   ~ During plotting of 5s beam sets, pauses until user clicks on plot.
+% pause_each_plot   ~ During plotting of beam sets, pauses until user clicks on plot.
 %                   ~ Requires plot_beams
 %                   ~ Plots are not visible if they are not paused
 % plot_beams        ~ Causes plotting of 5s beam sets. If this is not set, drift steps
@@ -42,11 +42,21 @@
 % iVarName is an index to VarName
 % iiVarName is an index to an index to VarName; e.g., VarName (iVarName (iiVarName))
 % nVarName is the number of elements in VarName
+% _dn indicates a MATLAB datenum variable
+% _frunc indicates fractional uncertainty: SD / mean
 % _sdcs <~~~~<< is 'some despun coord system'. It stands for any that is useful.
-% _dn  indicates a MATLAB datenum variable
 % _t2k indicates a CDF TT2000 variable
-% u or _u is a unit vector; _u used for clarity when needed
+% _u or ...u is a unit vector; _u used for clarity when needed
 % 2n indicates a 2-norm result.
+% ISA indicates intersection angle
+% CI - confidence interval
+% SD - std dev
+% SDOM - std dev of the mean. See important notes in 'Accuracy, Error, Precision,
+%  and Uncertainty.txt' regarding the use of the standard deviation (here, SD)
+%  and the standard deviation of the mean (here, SDOM).
+%  See http://onlinestatbook.com/2/estimation/mean.html ~> mu +- Z.nn * SDOM
+% Percentile to Z-Score for a normal distribution
+%  z score, also z critical value. See 'Accuracy, etc.'
 %
 % MATLAB release(s) MATLAB 8.3.0.532 (R2014a)
 % Required Products None
@@ -54,76 +64,84 @@
 % Plots that prompt questions:
 %
 % History:
-% ISA: intersection angle
-% 2015-09-04 ~ v010600:
-%  ~ Important !!! Notes about variable naming conventions, UPDATED.
-%  ~ Change local, not CDF, vars _dmpa to _sdcs <~~~~<<.
-%  ~ Set minimum number of beams to use at 2..
-%  ~ Correct EDP data call to use obsID.
-%  ~ Change large plot types from lines to dots.
+% 2015-10- ~ v02.00.00:
+% ~ Add uncertainty notes; lay the foundation for uncertainty propagation.
+% ~ Standardize on SD and SDOM.
+% ~ Clean up interface twixt edi_drift_step and edi_drift_step_plot.
+% ~ edi_drift_step: develop better flow of var names for S_star and related vars.
+% ~ Research statistics terms to include here; include references.
+% ~ Update 'Accuracy, Error, Precision, and Uncertainty.txt'.
+% ~ Propagate S* and B errors through to E-field results.
 %
-% 2015-08-11 ~ v010506:
-%  ~ minor internal docs
+% 2015-09-04 ~ v01.06.00:
+% ~ Important !!! Notes about variable naming conventions, UPDATED.
+% ~ Change local, not CDF, vars _dmpa to _sdcs <~~~~<<.
+% ~ Set minimum number of beams to use at 2..
+% ~ Correct EDP data call to use obsID.
+% ~ Change large plot types from lines to dots.
 %
-% 2015-08-07 ~ v010505:
-%  ~ add CDF_varInfo.m
-%  ~ use CDF FILLVALs
-%  ~ clarify use of (edi_BdvE_recnum:edi_xref2_BdvE) :: (1:many)
-%  ~ scale drift velocity from SI to km/s, IAW
-%    https://lasp.colorado.edu/galaxy/display/mms/Units+of+Measure (2015-08-08)
+% 2015-08-11 ~ v01.05.06:
+% ~ minor internal docs
 %
-% 2015-07-24 ~ v010504:
-%  ~ add internal notes about global flags
-%  ~ replace references to 'target' with 'virtual source', or some variant
-%  ~ add myLibCDFConstants.m
+% 2015-08-07 ~ v01.05.05:
+% ~ add CDF_varInfo.m
+% ~ use CDF FILLVALs
+% ~ clarify use of (edi_BdvE_recnum:edi_xref2_BdvE) :: (1:many)
+% ~ scale drift velocity from SI to km/s, IAW
+%   https://lasp.colorado.edu/galaxy/display/mms/Units+of+Measure (2015-08-08)
 %
-% 2015-07-22 ~ v010503:
-%  ~ add plot of weights versus intersection angles, with quality setpoints
-%  ~ add internal notes
-%  ~ change sinx_wt_Q_xovr definition; change plot to degrees for clarity
-%  ~ add beam_intercept_angle_test.m to project to validate calculation
-%  ~ add abs() to intersect angle - weight calcs (-90..90° ~> 0..90°)
+% 2015-07-24 ~ v01.05.04:
+% ~ add internal notes about global flags
+% ~ replace references to 'target' with 'virtual source', or some variant
+% ~ add myLibCDFConstants.m
 %
-% 2015-07-20 ~ v010502:
-%  ~ add first estimate of beam intersection quality - parallelism
+% 2015-07-22 ~ v01.05.03:
+% ~ add plot of weights versus intersection angles, with quality setpoints
+% ~ add internal notes
+% ~ change sinx_wt_Q_xovr definition; change plot to degrees for clarity
+% ~ add beam_intercept_angle_test.m to project to validate calculation
+% ~ add abs() to intersect angle - weight calcs (-90..90° ~> 0..90°)
 %
-%  ~ v010501: IA < macroBeamCheckAngle = atan(tand(5)) ~> NaN
-%    There are subtle (small, insignificant) differences in a few S*;
-%    not worth the code expense.
-%  ~ v010500: all beams included. sin^4 weighting
-%  ~ Use 'mms2_edi_slow_ql_efield_20150509_v0.1.3.cdf'
-%  ~ add intercept count to file name
-%  ~ add batch file to send project to Git dir
-%  ~ changed weight from sin^2 to sin^4
+% 2015-07-20 ~ v01.05.02:
+% ~ add first estimate of beam intersection quality - parallelism
 %
-% 2015-06-30 ~ v0104:
-%  ~ made plot figure persistent; removed figure close () in plot routine
-%  ~ finally got the plots to update & save in the background, but not sure that
-%    there is an actual performance improvement.
-%  ~ add switch to choose among rotation matrix methods
-%  ~ add switch to show unit vectors
-%  ~ different symbols and lines for GDU1, 2
-%  ~ added legend to beam plots
+% ~ v01.05.01: IA < macroBeamCheckAngle = atan(tand(5)) ~> NaN
+%   There are subtle (small, insignificant) differences in a few S*;
+%   not worth the code expense.
+% ~ v01.05.00: all beams included. sin^4 weighting
+% ~ Use 'mms2_edi_slow_ql_efield_20150509_v0.1.3.cdf'
+% ~ add intercept count to file name
+% ~ add batch file to send project to Git dir
+% ~ changed weight from sin^2 to sin^4
 %
-% 2015-06-23 ~ v0103:
-%  ~ included global vars to control program flow
-%  ~ made plots invisble during plotting if pause_each_plot = false
-%  ~ update trace disps to command window and plot title content
+% 2015-06-30 ~ v01.04.00:
+% ~ made plot figure persistent; removed figure close () in plot routine
+% ~ finally got the plots to update & save in the background, but not sure that
+%   there is an actual performance improvement.
+% ~ add switch to choose among rotation matrix methods
+% ~ add switch to show unit vectors
+% ~ different symbols and lines for GDU1, 2
+% ~ added legend to beam plots
 %
-% 2015-06-22 ~ v0102:
-%  ~ use CDF files for EDI, B, and EDP data
-%  ~ apply plot style during save
-%  ~ include obsID on plots
-%  ~ include local copies of myLibAppConstants, myLibScienceConstants
-%  ~ change references to Cluster data
+% 2015-06-23 ~ v01.03.00:
+% ~ included global vars to control program flow
+% ~ made plots invisble during plotting if pause_each_plot = false
+% ~ update trace disps to command window and plot title content
 %
-% 2015-06-19 ~ v0101:
-%  ~ update plot: sample datetime, selected confidence, legend
-%  ~ implement weighted mean: sin^2
-%  ~ teste with 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
+% 2015-06-22 ~ v01.02.00:
+% ~ use CDF files for EDI, B, and EDP data
+% ~ apply plot style during save
+% ~ include obsID on plots
+% ~ include local copies of myLibAppConstants, myLibScienceConstants
+% ~ change references to Cluster data
 %
-% 2015-06-08 ~ v0100:
-%  ~ draft, proof of concept
+% 2015-06-19 ~ v01.01.00:
+% ~ update plot: sample datetime, selected confidence, legend
+% ~ implement weighted mean: sin^2
+% ~ test with 'mms2_edi_slow_ql_efield_20150509_v0.0.1.cdf'
+%
+% 2015-06-08 ~ v01.00.00:
+% ~ draft, proof of concept
 %
 
 clc             % clear the command window
@@ -135,12 +153,15 @@ format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.06.00';
+global dotVersion;        dotVersion        = 'v1.07.00';
 global pause_each_plot;   pause_each_plot   = false; % Plots are not visible if they are not paused
+global plot_B_frunc;      plot_B_frunc      = false; % B fractional uncertainty
 global plot_beams;        plot_beams        = false;
+global plot_d_frunc;      plot_b_frunc      = false; % drift step fractional uncertainty
 global plot_dots;         plot_dots         = false;
+global plot_E_frunc;      plot_E_frunc      = false; % E fractional uncertainty
 global plot_edi_E_sdcs;   plot_edi_E_sdcs   = false; % deprecated
-global plot_summary;      plot_summary      = true;
+global plot_summary;      plot_summary      = false;
 global plot_sinx_weights; plot_sinx_weights = false;
 global rotation_method;   rotation_method   = 2;     % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
 global save_beam_plots;   save_beam_plots   = false;
@@ -149,15 +170,66 @@ global sinx_wt_Q_xovr;    sinx_wt_Q_xovr    = sind (sinx_wt_Q_xovr_angles).^4.0;
 global show_unit_vectors; show_unit_vectors = false;
 global use_v10502;        use_v10502        = false; % Remove parallel beams
 
+EDI_presentation_beam_plot_style.Resolution = '600';
+
+UseFileOpenGUI = false; % true false
+if ~UseFileOpenGUI
+	mms_ql_dataPath = 'D:\MMS\MATLAB\MEEdrift\mms_edi_cdf';
+
+% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
+	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
+% 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
+
+	mms_ql_EDI_BdvE_data = [mms_ql_dataPath cFileSep mms_ql_EDI_BdvE_dataFile];
+
+	mms_ql_dataPath = 'D:\MMS\MATLAB\MEEdrift\mms_edp_cdf';
+
+% 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
+	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms4_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms4_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms4_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
+
+	mms_ql_EDP_data = [mms_ql_dataPath cFileSep mms_ql_EDP_dataFile];
+end
+
 edi_drift_step_read_ql__EDI__B__EDP_data
 
 nB_recs       = length (BdvE_dn);
-driftStep     = zeros (3, nB_recs);
-dUncertainty  = zeros (3, nB_recs);
-driftVelocity = zeros (3, nB_recs);
-drift_E       = zeros (3, nB_recs);
-drift_E (:,:) = NaN;
-dsQuality     = zeros (1, nB_recs, 'uint8');
+d_bpp         = zeros (3, nB_recs);
+d_SD_bpp  = zeros (3, nB_recs);
+d_CI_bpp  = zeros (3, nB_recs);
+d_sdcs        = zeros (3, nB_recs);
+d_SD_sdcs = zeros (3, nB_recs);
+d_CI_sdcs = zeros (3, nB_recs);
+d_quality     = zeros (1, nB_recs, 'uint8');
+v_sdcs  = zeros (3, nB_recs);
+E_sdcs  = zeros (3, nB_recs);
+E_sdcs_unc = zeros (3, nB_recs);
+
+E_sdcs (:,:) = NaN;
 
 % for each B interval, there are EDI records indexed to B:EDI :: 1:many
 % Here we look at each B record, find the corresponding EDI records, and filter.
@@ -176,28 +248,81 @@ for B_recnum = 1: size (edi_B_sdcs, 2)
 
 	% keyboard
 	if (length (iB_xref2_edi) > 1) % More than 1 beam
-		B_sdcs = edi_B_sdcs (1:3, B_recnum);
-		B_t2k  = edi_BdvE_t2k (B_recnum);
+		B_sdcs    = edi_B_sdcs (:, B_recnum);
+		B_SD_sdcs = edi_B_std_sdcs (:, B_recnum);
+		B_t2k     = edi_BdvE_t2k (B_recnum);
 
 		gd_virtual_sdcs = edi_gd_virtual_sdcs (:, iB_xref2_edi);
 		gd_fv_sdcs      = edi_gd_fv_sdcs      (:, iB_xref2_edi);
 		gd_ID           = edi_gd_ID           (:, iB_xref2_edi);
 
-		[ driftStep(:, B_recnum), ...
-		  dUncertainty(:, B_recnum), ...
-		  driftVelocity(:, B_recnum), ...
-		  drift_E(:, B_recnum), dsQuality(:, B_recnum) ] = edi_drift_step ( ...
+		[ ...
+			d_bpp(:, B_recnum), ...
+			d_SD_bpp(:, B_recnum), ...
+			d_CI_bpp(:, B_recnum), ...
+			d_sdcs(:, B_recnum), ...
+			d_SD_sdcs(:, B_recnum), ...
+			d_CI_sdcs(:, B_recnum), ...
+			d_quality(:, B_recnum), ...
+			v_sdcs(:, B_recnum), ...
+			E_sdcs(:, B_recnum), ...
+			E_sdcs_unc(:, B_recnum) ...
+	  ] = edi_drift_step ( ...
 			obsID, ...
 			B_t2k, ...
 			B_sdcs, ...
+			B_SD_sdcs, ...
 			gd_virtual_sdcs, ...
 			gd_fv_sdcs, ...
-			gd_ID );
+			gd_ID ...
+		);
+
 	else
-		drift_E (:, B_recnum) = [ NaN; NaN; NaN ];
+		E_sdcs (:, B_recnum) = [ NaN; NaN; NaN ];
 	end
 
 end % for B_recnum = 1: ...
+
+% these next plots are debugging plots, and are meant to be used manually
+% comment them out to run in usual mode
+% keyboard
+
+% plot (BdvE_dn, abs (edi_B_std_sdcs ./ edi_B_sdcs));
+% title ('EDI B fractional uncertainty')
+
+% plot (BdvE_dn, abs (d_SD_bpp ./ d_bpp));
+% title ('edi\_drift\_step d BPP stddev fractional uncertainty')
+
+% plot (BdvE_dn, abs (d_CI_bpp ./ d_bpp));
+% title ('edi\_drift\_step d BPP uncertainty from mean stddev fractional uncertainty')
+
+% plot (BdvE_dn, abs (d_SD_sdcs ./ d_sdcs));
+% title ('edi\_drift\_step d SDCS stddev fractional uncertainty')
+
+% plot (BdvE_dn, abs (d_CI_sdcs ./ d_sdcs));
+% title ('edi\_drift\_step d SDCS uncertainty fractional uncertainty')
+
+% plot (BdvE_dn, abs(E_sdcs_unc ./ E_sdcs));
+% title ('E\_sdcs\_unc fractional uncertainty')
+
+% plot (BdvE_dn, E_sdcs, BdvE_dn, edi_E_sdcs);
+% legend ('E sdcs_x', 'E sdcs_y', 'E sdcs_z', 'EDI E_x', 'EDI E_y', 'EDI E_z');
+% title ('E SDCS and EDI E')
+
+%{
+xlabel (sprintf ( '%s', datestr((BdvE_dn(1)), 'yyyy-mm-dd') ))
+plotDateMin = double (min(BdvE_dn));
+plotDateMax = double (max(BdvE_dn));
+% plotDateMin = datenum ('2015-08-19 09:30:00'); % datestr (plotDateMin, 'yyyy-mm-dd HH:MM:SS');
+plotDateMax = datenum ('2015-08-19 09:40:00');
+xlim ( [ plotDateMin plotDateMax ] )
+set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax])
+datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
+%}
+
+save edi_drift_step_20150819_105000_105500_all_vars.mat
+% load edi_drift_step_20150819_105000_105500_all_vars.mat
+% End of manual debugging plots - comment them out to run in usual mode
 
 if plot_summary
 	set (0, 'DefaultFigureVisible', 'on')
@@ -249,18 +374,18 @@ if plot_summary
 		'LineStyle', 'none', 'Marker', 'o', ...
 		'MarkerFaceColor', MMS_plotColorz, 'MarkerEdgeColor', MMS_plotColorz, 'MarkerSize', 1.0);
 
-	hDrift_Ex = plot (BdvE_dn, drift_E (1,:), ...
+	hE_drift_sdcsx = plot (BdvE_dn, E_sdcs (1,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
 		'MarkerFaceColor', myDarkBlue, 'MarkerEdgeColor', myDarkBlue, 'MarkerSize', 3.0);
 
-	hDrift_Ey = plot (BdvE_dn, drift_E (2,:), ...
+	hE_drift_sdcsy = plot (BdvE_dn, E_sdcs (2,:), ...
 		'LineStyle', 'none', 'Marker', 'o', ...
 		'MarkerFaceColor', myDarkGreen, 'MarkerEdgeColor', myDarkGreen, 'MarkerSize', 3.0);
 
-% 	hQuality_plot = bar (BdvE_dn, dsQuality, 0.1, 'w', 'EdgeColor', 'white'); % myLightGrey6
+% 	hQuality_plot = bar (BdvE_dn, d_quality, 0.1, 'w', 'EdgeColor', 'white'); % myLightGrey6
 
 	hEDI_E_B_plot (1:2) = hEDP_dce_xyz_sdcs;
-	hEDI_E_B_plot (3:4) = [ hDrift_Ex, hDrift_Ey ];
+	hEDI_E_B_plot (3:4) = [ hE_drift_sdcsx, hE_drift_sdcsy ];
 % 	hEDI_E_B_plot (5)   = hQuality_plot;
 	hEDI_E_B_plot (6:8) = hEDI_B;
 
@@ -276,7 +401,7 @@ if plot_summary
 	hold off
 
 	figure
-	hist (double(dsQuality), [0:3])
+	hist (double(d_quality), [0:3])
 end % if plot_summary
 
 if plot_sinx_weights

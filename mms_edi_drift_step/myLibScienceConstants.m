@@ -14,9 +14,13 @@ quarterPi = pi / 4.0;
 deg2rad = pi / 180.0;
 rad2deg = 180.0 / pi;
 
-Re = 6371; % kilometers
+Re = 6371000.0; % meters
+% m_Earth =
+% G =
+GM = 3.986e+14; % m^3 / s^2
 
 q_over_m = -q / mass_e;
+q_over_mass_e_nT2T = q * nT2T / mass_e;
 
 % Non-relativistic: KE = mv^2 / 2 ~> v_nr = sqrt (2.0 * 500 eV / mass_e)
 v_500eV_electron = 13262052.; % m/s

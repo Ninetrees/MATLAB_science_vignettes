@@ -1,0 +1,146 @@
+Accuracy, Error, Precision, and Uncertainty
+
+Accuracy is the closeness of agreement between a measured value and the true value.
+Error is the difference between a measurement and the true value of the measur and
+(the quantity being measured).
+
+Trueness is the closeness of agreement between the average value obtained from
+a large series of test results and an accepted true. The terminology is very
+similar to that used in accuracy, but trueness applies to the average value of
+a large number of measurements.
+
+Bias, equivalent to the total systematic error in the measurement, is the difference
+between the average value of the large series of measurements and the accepted true.
+
+Precision is the closeness of agreement between independent measurements of a
+quantity under the same conditions.
+
+Repeatability is simply the precision determined under conditions where the same
+methods and equipment are used by the same operator to make measurements on identical
+specimens.
+
+Uncertainty is the component of a reported value that characterizes the range of
+values within which the true value is asserted to lie.
+
+"...a proper statistical treatment usually gives a /smaller/ uncertainty than the
+full range from the lowest to the highest observed value." [1] See confidence
+levels.
+
+"Experimental uncertainties should almost always be rounded to one significant
+figure." [1] If the leading digit is a 1, then it is reasonable to keep 2 sig figs,
+but this creates more coding... must decide whether to apply this guideline, and,
+if so, how. In addition, "The last significant figure in any stated answer should
+usually be of the same order of magnitude (in the same decimal position) as the
+uncertainty." [1]
+
+If the leading figure of the uncertainty is 1 or 2, it is reasonable to keep an
+additional sig fig in the answer... this may lead to a set of simple guidelines
+that, for the sake of computing simplicity, result in the retention and reporting
+of one more sig fig than we might expect.
+
+~~~~~~~~~~~~~~~~~~~
+For 2 quantities, x and y, with uncertainties dx, dy, the difference q = |x-y|
+is dq ~= dx + dy ~> sqrt (dx^2 + dy^2) (quadratic sum). The quadratic sum is used
+when the measured quantities x and y are /independent/ and subject to /random/
+uncertainties; otherwise, use the simple sum.
+
+See fractional uncertainty, fu = dx / |x|. (dimensionless)
+See percentage uncertainty, pu = dx / |x| * 100. (dimensionless)
+
+~~~~~~~~~~~~~~~~~~~
+For the product of two measured numbers, say, x1 and x2, we turn to the product
+fractional uncertainty, pfu = (1 + fu1) (1 + fu2) ~= 1 +- (fu1 + fu2), where the
+product fu1 * fu2 is assumed to be neglibly small.
+
+The absolute uncertainty in the product is then pu = pfu * product.
+Similarly, the absolute uncertainty in the quotient is also qu = qfu * quotient,
+where qfu is the sum of the dividend and divisor fus.
+
+For constant C, the uncertainty qu in q = Cx is qu = |C| * xu.
+
+For quantities raised to a power, q = x^n, the power fractional uncertainty is
+pfu = |n| * fu.
+
+~~~~~~~~~~~~~~~~~~~
+So far, we have rules for calculating the uncertainties of sums|differences and
+products|quotients, with the consideration of quadrature sums applying to both.
+
+~~~~~~~~~~~~~~~~~~~
+Combining MMS B-field data and EDI drift step results to estimate the E-field,
+using a series of calculations (here () means 'is a function of'):
+gyroFrequency (||B||) ~> gyroPeriod
+mean (BC) ~> d (BC) ~> v_drift = d / gyroPeriod
+E_drift = cross (B, v_drift)
+At each step, uncertainies must be accounted for.
+
+
+~~~~~~~~~~~~~~~~~~~
+Regarding the use of the standard deviation (here, SD) and the standard deviation 
+of the mean (here, SDOM)...
+SD represents the average uncertainty of individual measurements. We would not
+expect SD to change appreciably with an increase in the number of measurements.
+On the other hand, SDOM, which is SD / sqrt(N), would slowly decrease (sqrt(N))
+as more measurements are made before computing these statistics. This makes sense,
+becuase we'd expect more confidence in our results as the number of measurements
+increases. [1] Sect 4.4 defends the use of SDOM in the case of 10 measurments of
+the same [normally distributed] physical property. Here we see mean ~> SD ~> SDOM,
+and the best estimate for the result is the mean +- SDOM, adjusted, as we will
+see, for the confidence intervals (here, CI) that are based on a z score
+calculated from the chosen confidence percentile.
+
+~~~~~~~~~~~~~~~~~~~
+Confidence levels and probabilities with respect to the estimate of S_star are
+considered separately in BPPx and BPPy. Further, because the x|y value for an
+intersection can be either less than or greater than the corresponding x|y value
+for the mean, relevant probabilities are expressed as "two-tailed probabilities".
+
+A two-tailed test allots half of alpha to testing the statistical significance
+in one direction, and half in the other.
+A z-score of 1 is 1 standard deviation away from the mean. The z_zcore is one-sided;
+that is, it tests one "tail". If a two-tailed test is indicated (It is for beam
+intersection, because each beam intersection x|y-value may be less than or greater
+than the mean.), then alpha must be divided by two before calculating the z_score.
+For example, if we want 68% confidence, this corresponds to a z_score of 1
+(1-sigma).
+P0 = 0.68
+alpha = (1.0 - P0) / 2.0
+z_score = norminv (1-alpha) % ~> ~1.0
+(ref) 'What are the differences between one-tailed and two-tailed tests?'
+http://www.ats.ucla.edu/stat/mult_pkg/faq/general/tail_tests.htm, 2015-09-28
+
+~~~~~~~~~~~~~~~~~~~
+Notes about beam convergence (BC) as a method for determining the virtual source 
+of EDI beams (MMS observatories).
+
+BC is based on the idea that each beam intersection constitutes an independent 
+attempt to find the virtual source of the beams. Independent, because the beams 
+are open loop with respect to this process; that is, there is no feedback to the 
+EDI instruments based on any intersection. In addition, there is no feedback in 
+the calculations that relates one intersection to another.
+
+The virtual source S* of the beams is estimated to be the mean of the beam 
+intersections, taken separately in x and y, as seen in the B-perpendicular plane
+(BPP).
+
+The value that is evaluated statistically is the distance, again, separately in 
+x and y in BPP, from each intersection to that mean.
+
+These differences have a distribution similar to a normal distribution.
+
+There are confidence bounds associated with these differences. The confidence 
+bounds are based on the confidence level sought (for example, 84%), and the 
+relation twixt that level, the SDOM of the distribution, the percentile critical 
+Z-value (z-score), and the normal distribution. Outliers are tossed using Grubbs 
+test for outliers.
+
+~~~~~~~~~~~~~~~~~~~
+Glossary
+Verification and Validation (V&V):
+ ~Verification is the evaluation of whether or not a product, service, or system
+  complies with a regulation, requirement, specification, or imposed condition.
+ ~Validation is the evaluation of a product, service, or system with regard to
+  client needs.
+
+~~~~~~~~~~~~~~~~~~~
+References
+[1] An Introduction to Error Analysis, 2E, Taylor, 1997
