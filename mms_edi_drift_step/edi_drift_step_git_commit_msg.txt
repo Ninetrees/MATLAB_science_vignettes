@@ -1,9 +1,9 @@
-edi_drift_step v02.00.00
-~ Propagate S* and B errors through to E-field results.
-~ Add uncertainty notes; lay the foundation for uncertainty propagation.
-~ Standardize on SD and SDOM.
-~ Clean up interface twixt edi_drift_step and edi_drift_step_plot.
-~ edi_drift_step: develop better flow of var names for S_star and related vars.
-~ Research statistics terms to include here; include references.
-~ Update 'Accuracy, Error, Precision, and Uncertainty.txt'.
+edi_drift_step v02.01.00
+~ Move load|save lines
+~ Implement Git commit message.
+~ Correct B2n uncertainty.
+~ Extend E-field uncertainty to rotation matrices.
+~ Do not calculate uncertainty of rotated uncertainties --- too small.
+~ Replace all uncertainty quadrature sums with ordinary sums.
+~ Add edi_drift_step_app_rot_mat_unc.m
 See edi_drift_step_wrapper.m

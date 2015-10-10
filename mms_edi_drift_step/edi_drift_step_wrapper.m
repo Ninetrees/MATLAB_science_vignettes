@@ -13,8 +13,8 @@
 % There are no parms passed in. Each version of the program reads specific MMS
 % data files that may change from version to version.
 % Data files for this version:
-% 'mms2_edi_slow_ql_efield_20150509_v0.1.4.cdf'
-% 'mms2_edp_comm_ql_dce2d_20150509000000_v0.1.0.cdf'
+% 'mms1_edi_srvy_sl_efield_20150819_v0.2.3.cdf'
+% 'mms1_edp_slow_ql_dce_20150819000000_v0.2.0.cdf'
 %
 % Output:
 % Optionally produces a series of drift step plots.
@@ -57,6 +57,7 @@
 %  See http://onlinestatbook.com/2/estimation/mean.html ~> mu +- Z.nn * SDOM
 % Percentile to Z-Score for a normal distribution
 %  z score, also z critical value. See 'Accuracy, etc.'
+% Lines ending 'with % V&V' are left in as comments to facilitte later verification
 %
 % MATLAB release(s) MATLAB 8.3.0.532 (R2014a)
 % Required Products None
@@ -64,7 +65,16 @@
 % Plots that prompt questions:
 %
 % History:
-% 2015-10- ~ v02.00.00:
+% 2015-10-10 ~ v02.01.00:
+% ~ Move load|save lines
+% ~ Implement Git commit message.
+% ~ Correct B2n uncertainty.
+% ~ Extend E-field uncertainty to rotation matrices.
+% ~ Do not calculate uncertainty of rotated uncertainties --- too small.
+% ~ Replace all uncertainty quadrature sums with ordinary sums.
+% ~ Add edi_drift_step_app_rot_mat_unc.m
+%
+% 2015-10-02 ~ v02.00.00:
 % ~ Add uncertainty notes; lay the foundation for uncertainty propagation.
 % ~ Standardize on SD and SDOM.
 % ~ Clean up interface twixt edi_drift_step and edi_drift_step_plot.
@@ -153,7 +163,7 @@ format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v1.07.00';
+global dotVersion;        dotVersion        = 'v2.01.00';
 global pause_each_plot;   pause_each_plot   = false; % Plots are not visible if they are not paused
 global plot_B_frunc;      plot_B_frunc      = false; % B fractional uncertainty
 global plot_beams;        plot_beams        = false;
@@ -161,8 +171,9 @@ global plot_d_frunc;      plot_b_frunc      = false; % drift step fractional unc
 global plot_dots;         plot_dots         = false;
 global plot_E_frunc;      plot_E_frunc      = false; % E fractional uncertainty
 global plot_edi_E_sdcs;   plot_edi_E_sdcs   = false; % deprecated
-global plot_summary;      plot_summary      = false;
+global plot_summary;      plot_summary      = true;
 global plot_sinx_weights; plot_sinx_weights = false;
+global rot_mat_unc;       rot_mat_unc       = true;  % Apply uncertainty to rot mats as well
 global rotation_method;   rotation_method   = 2;     % 1: r_matrix, 2: Bx = By x Bz, 3: Euler x, y
 global save_beam_plots;   save_beam_plots   = false;
 sinx_wt_Q_xovr_angles                       = [ 8.0 30 ];
@@ -216,17 +227,18 @@ if ~UseFileOpenGUI
 end
 
 edi_drift_step_read_ql__EDI__B__EDP_data
+% load edi_drift_step_20150819_105000_105500_all_vars.mat
 
-nB_recs       = length (BdvE_dn);
-d_bpp         = zeros (3, nB_recs);
-d_SD_bpp  = zeros (3, nB_recs);
-d_CI_bpp  = zeros (3, nB_recs);
-d_sdcs        = zeros (3, nB_recs);
-d_SD_sdcs = zeros (3, nB_recs);
-d_CI_sdcs = zeros (3, nB_recs);
-d_quality     = zeros (1, nB_recs, 'uint8');
-v_sdcs  = zeros (3, nB_recs);
-E_sdcs  = zeros (3, nB_recs);
+nB_recs    = length (BdvE_dn);
+d_bpp      = zeros (3, nB_recs);
+d_SD_bpp   = zeros (3, nB_recs);
+d_CI_bpp   = zeros (3, nB_recs);
+d_sdcs     = zeros (3, nB_recs);
+d_SD_sdcs  = zeros (3, nB_recs);
+d_CI_sdcs  = zeros (3, nB_recs);
+d_quality  = zeros (1, nB_recs, 'uint8');
+v_sdcs     = zeros (3, nB_recs);
+E_sdcs     = zeros (3, nB_recs);
 E_sdcs_unc = zeros (3, nB_recs);
 
 E_sdcs (:,:) = NaN;
@@ -235,8 +247,11 @@ E_sdcs (:,:) = NaN;
 % Here we look at each B record, find the corresponding EDI records, and filter.
 
 disp 'looping over edi_B_sdcs'
-for B_recnum = 1: size (edi_B_sdcs, 2)
-% 	sprintf (' processing B_recnum %d', B_recnum)
+fprintf ('Completed (%4d):  %4d', nB_recs, 0); % set up progress notification
+
+for B_recnum = 1: nB_recs
+	fprintf ( ['\b\b\b\b\b', sprintf('%4d', B_recnum), ' '] ); % erase 4 digits + 1 space
+
 	% specific date-time request to compare w Matt's plot
 	% MMS2 2015-05-09 16:08:35 - 16:08:40
 	% 	tt2000_20150509_160835 = spdfdatenumtott2000(datenum('2015-05-09 16:08:34', 'yyyy-mm-dd HH:MM:ss'))
@@ -287,27 +302,41 @@ end % for B_recnum = 1: ...
 % comment them out to run in usual mode
 % keyboard
 
+bDateStr = datestr (BdvE_dn (1), ' yyyymmdd');
+
 % plot (BdvE_dn, abs (edi_B_std_sdcs ./ edi_B_sdcs));
-% title ('EDI B fractional uncertainty')
+% title ([ ...
+% 	'1. EDI drift step ', dotVersion, ...
+% 	' MMS', obsID, ...
+% 	bDateStr, ...
+% 	' EDI B fractional uncertainty'])
 
 % plot (BdvE_dn, abs (d_SD_bpp ./ d_bpp));
-% title ('edi\_drift\_step d BPP stddev fractional uncertainty')
+% title ('2. edi\_drift\_step d BPP stddev fractional uncertainty')
 
 % plot (BdvE_dn, abs (d_CI_bpp ./ d_bpp));
-% title ('edi\_drift\_step d BPP uncertainty from mean stddev fractional uncertainty')
+% title ([ ...
+% 	'3. EDI drift step ', dotVersion, ...
+% 	' MMS', obsID, ...
+% 	bDateStr, ...
+% 	' EDI d BPP SDOM confidence intervals'])
 
 % plot (BdvE_dn, abs (d_SD_sdcs ./ d_sdcs));
-% title ('edi\_drift\_step d SDCS stddev fractional uncertainty')
+% title ('4. edi\_drift\_step d SDCS stddev fractional uncertainty')
 
 % plot (BdvE_dn, abs (d_CI_sdcs ./ d_sdcs));
-% title ('edi\_drift\_step d SDCS uncertainty fractional uncertainty')
+% title ('5. edi\_drift\_step d SDCS uncertainty fractional uncertainty')
 
 % plot (BdvE_dn, abs(E_sdcs_unc ./ E_sdcs));
-% title ('E\_sdcs\_unc fractional uncertainty')
+% title ('6. E\_sdcs\_unc fractional uncertainty')
 
 % plot (BdvE_dn, E_sdcs, BdvE_dn, edi_E_sdcs);
 % legend ('E sdcs_x', 'E sdcs_y', 'E sdcs_z', 'EDI E_x', 'EDI E_y', 'EDI E_z');
-% title ('E SDCS and EDI E')
+% title ([ ...
+% 	'7. EDI drift step ', dotVersion, ...
+% 	' MMS', obsID, ...
+% 	bDateStr, ...
+% 	' E calculated and EDI E'])
 
 %{
 xlabel (sprintf ( '%s', datestr((BdvE_dn(1)), 'yyyy-mm-dd') ))
@@ -320,11 +349,11 @@ set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax])
 datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
 %}
 
-save edi_drift_step_20150819_105000_105500_all_vars.mat
-% load edi_drift_step_20150819_105000_105500_all_vars.mat
+% save edi_drift_step_20150819_105000_105500_all_vars.mat % see load above
 % End of manual debugging plots - comment them out to run in usual mode
 
 if plot_summary
+	disp 'Preparing summary plot...'
 	set (0, 'DefaultFigureVisible', 'on')
 
 	[ hAxis hEDP_dce_xyz_sdcs hEDI_B ] = plotyy ( ...
@@ -389,7 +418,7 @@ if plot_summary
 % 	hEDI_E_B_plot (5)   = hQuality_plot;
 	hEDI_E_B_plot (6:8) = hEDI_B;
 
-	title ([' EDI drift step ', dotVersion, ': MMS', obsID, ' SDP 2D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'])
+	title (['EDI drift step ', dotVersion, ': MMS', obsID, ' EDP 3D E-fields, EDI E-fields and B avg @ 5 s intervals, DMPA'])
 
 	hLegend = legend (hEDI_E_B_plot, 'SDP E_x', 'SDP E_y', 'EDI E_x', 'EDI E_y', 'Quality', 'B_x', 'B_y', 'B_z');
 	hText = findobj (hLegend, 'type', 'text');

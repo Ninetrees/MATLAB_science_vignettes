@@ -20,59 +20,116 @@ function [ ...
 	);
 
 	myLibScienceConstants
-	global plot_beams rotation_method sinx_wt_Q_xovr use_v10502
+	global plot_beams rot_mat_unc rotation_method sinx_wt_Q_xovr use_v10502
 % 	disp 'entering edi_drift_step' % debug
 
 	B2n  = norm (B_sdcs, 2);
 	% The first step in propagating uncertainty to the E-field starts with B2n.
 	% The 2norm is the sqrt of the sum of the squares.
 	% Rule 1: Note use of fractional uncertainties.
-	% Rule 2: Uncertainties for summed terms add uncertainty in quadrature.
-	% Rule 3: Uncertainties for products sum fractional uncertainties (_frunc).
+	% Rule 2: Uncertainties for sums: sum uncertainties (_unc) ordinary or in ***quadrature.
+	% Rule 3: Uncertainties for products: sum fractional uncertainties (_frunc).
 	% Rule 4: If q = x^n, then q_frunc = |n| * x_frunc.
-	% Rule 5: If q = Cx, where C has no uncertainty, q_unc = |C| * x_unc (NOT frunc).
+	% Rule 5: If q = Cx, where C has no uncertainty, q_unc = |C| * x_unc (NOT _frunc).
 	% Rule 6: Unc in functions of one variable: q_unc = |dq/dx| * x_unc.
+	% Rule 7: Use SDOM where available. [1] Sect. 4.4.
+	% Rule 8: Convert _frunc to _unc: q_unc = |q| * q_frunc
+	% ***Because the goal is to use fewer beams per set, no quadrature is used.
 
+	% Calc uncertainty for B2n. These lines are all about the UNCERTAINTY, NOT B2n.
 	% Here each Bx|y|z is squared, then those squares are summed, then sqrt (sum).
-	B_frunc   = abs (B_SD_sdcs ./ B_sdcs);
-	Bx_frunc  = 2.0 * B_frunc (1);
-	By_frunc  = 2.0 * B_frunc (2);
-	Bz_frunc  = 2.0 * B_frunc (3);
-	B2n_frunc = sqrt (Bx_frunc^2 + By_frunc^2 + Bz_frunc^2);
-	B2n_unc   = B2n_frunc * B2n; % Total uncertainty in B2n
+	% The uncertainty: Rule 1, 4, 2, 4.
+	B_frunc = abs (B_SD_sdcs ./ B_sdcs); % Rule 1
+	% Techincally we need || here for B?_unc, but we are squaring them below, so could ignore.
+	Bx_unc  = abs ((2.0 * B_frunc (1)) * B_sdcs (1)); % Rule 4. Bx|y|z is raised to a power.
+	By_unc  = abs (2.0 * B_frunc (2) * B_sdcs (2)); % We need unc, not frunc, for Rule 2
+	Bz_unc  = abs (2.0 * B_frunc (3) * B_sdcs (3));
+	% It is tempting to combine the next two into 1 line, but we need B2n_frunc later.
+	B2n_frunc = 0.5 * ((Bx_unc + By_unc + Bz_unc) / B2n); % Rule 2, 1, 4
+	B2n_unc = B2n_frunc * B2n; % Total uncertainty in B2n
 % 	disp 'B stats' % V&V
 % 	[ B_sdcs B_SD_sdcs [B2n_unc;0;0] ] % V&V
 
-	Bu   = B_sdcs / B2n;
+	Bu_sdcs       = B_sdcs / B2n; % Bu has uncertainty
+	Bu_sdcs_frunc = B_frunc + B2n_frunc; % 3D
+	Bu_sdcs_unc   = abs (Bu_sdcs_frunc .* Bu_sdcs); % 3D
 
 	% We have not decided how to handle the uncertainty of the rotation matrix, 2015-10-01
+	% So these uncertainty calcs are wrapped in rot_mat_unc flag checks
 	switch rotation_method
 		% Method 1 ________________________________________________________________
 		case 1
 			I3    =  [ 1 0 0 ;  0 1 0 ; 0 0 1 ];
 			DMPAz = [ 0.0; 0.0; 1.0 ];
-			r     = cross (DMPAz, Bu); % rotate DMPAz to B
+			r     = cross (DMPAz, Bu_sdcs); % rotate DMPAz to B
 			rx    = [ ...
 			   0.0   r(3) -r(2);
 				-r(3)  0.0   r(1);
 				 r(2) -r(1)  0.0 ];
-			cosTheta = Bu (3); % dot (Bu, DMPAz): ||OCSz|| = ||Bu|| = 1; % Always Bu (3)
-			SDCS2BPP  = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2));
+			cosTheta = Bu_sdcs (3); % dot (Bu, DMPAz): ||OCSz|| = ||Bu|| = 1; % Always Bu (3)
+			SDCS2BPP = rx + (cosTheta * I3) + ((1-cosTheta) * (r*r') / sum (r.^2))
 
 		% Method 2 ________________________________________________________________
 		case 2
-			SDCS2BPPy = [ 0.0; 1.0; 0.0 ];
-			SDCS2BPPx = cross (SDCS2BPPy, Bu);
-			SDCS2BPPx = SDCS2BPPx / norm (SDCS2BPPx, 2);
-			SDCS2BPPy = cross (Bu, SDCS2BPPx);
-			SDCS2BPP  = [ SDCS2BPPx'; SDCS2BPPy'; Bu' ];
+			SDCS2BPPy   = [ 0.0; 1.0; 0.0 ];
+			% SDCS2BPPx = cross (SDCS2BPPy, Bu_sdcs); % Replace with next line shortcut
+			SDCS2BPPx   = [ Bu_sdcs(3); 0.0; -Bu_sdcs(1) ]; % No new uncertainty to here, just that of Bu
+			S2Bx2n      = norm (SDCS2BPPx, 2);
+			% -~-~-~-~-~-~-~-~-~
+			if rot_mat_unc % uncertainty for S2Bx2n
+				S2Bx_frunc   = abs ([ Bu_sdcs_frunc(3); 0.0; Bu_sdcs_frunc(1) ]);
+				S2Bxx_unc    = abs (2.0 * Bu_sdcs_frunc (3) * Bu_sdcs (3));
+				S2Bxy_unc    = 0.0;
+				S2Bxz_unc    = abs (2.0 * Bu_sdcs_frunc (1) * Bu_sdcs (1));
+				S2Bx2n_frunc = 0.5 * (S2Bxx_unc + S2Bxz_unc) / S2Bx2n; %  skip S2Bxy_unc = 0.0
+				S2Bx2n_unc   = S2Bx2n_frunc * S2Bx2n; % always non-negative
+			end
+			% -~-~-~-~-~-~-~-~-~
+			SDCS2BPPx = SDCS2BPPx / S2Bx2n; % Normalize SDCS2BPPx to unit vector
+			% -~-~-~-~-~-~-~-~-~
+			if rot_mat_unc % uncertainty for SDCS2BPPx normalization
+				% Bu_sdcs_frunc is a surrogate for the unnormalized SDCS2BPPx
+				% S2Bx_frunc = [ Bu_sdcs_frunc(3); 0.0; Bu_sdcs_frunc(1) ];
+				S2Bx_frunc = S2Bx_frunc + S2Bx2n_frunc;
+				S2Bx_unc   = S2Bx_frunc .* SDCS2BPPx; % 3D
+			end
+			% -~-~-~-~-~-~-~-~-~
+			SDCS2BPPy = cross (Bu_sdcs, SDCS2BPPx);
+			% -~-~-~-~-~-~-~-~-~
+			if rot_mat_unc % uncertainty for the cross product
+				% Each dim is the same set of calcs, but with different uncertainties: 2 products and 1 sum
+				% Note that while the cross product has a sign change in j, the fruncs do not
+				S2By_ifrunc1 = Bu_sdcs_frunc(2) + S2Bx_frunc(3);
+				S2By_ifrunc2 = Bu_sdcs_frunc(3) + S2Bx_frunc(2);
+				S2By_jfrunc1 = Bu_sdcs_frunc(1) + S2Bx_frunc(3);
+				S2By_jfrunc2 = Bu_sdcs_frunc(3) + S2Bx_frunc(1);
+				S2By_kfrunc1 = Bu_sdcs_frunc(1) + S2Bx_frunc(2);
+				S2By_kfrunc2 = Bu_sdcs_frunc(2) + S2Bx_frunc(1);
+				% Calculate _unc from _frunc, quad add
+				S2By_unc (1) = S2By_ifrunc1 * SDCS2BPPy(1) + S2By_ifrunc2 * SDCS2BPPy(1);
+				S2By_unc (2) = S2By_jfrunc1 * SDCS2BPPy(2) + S2By_jfrunc2 * SDCS2BPPy(2);
+				S2By_unc (3) = S2By_kfrunc1 * SDCS2BPPy(3) + S2By_kfrunc2 * SDCS2BPPy(3);
+			end
+			% -~-~-~-~-~-~-~-~-~
+			SDCS2BPP   = [ SDCS2BPPx'; SDCS2BPPy'; Bu_sdcs' ];
+			S2By_frunc = S2By_unc' ./ SDCS2BPPy;
+			SDCS2BPP_frunc = [ ...
+				[ S2Bx_frunc(1) S2Bx_frunc(2) S2Bx_frunc(3) ]
+				[ S2By_frunc(1) S2By_frunc(2) S2By_frunc(3) ]
+				[ Bu_sdcs_frunc(1)   Bu_sdcs_frunc(2)   Bu_sdcs_frunc(3)   ] ]; % V&V
+			SDCS2BPP_unc = [ ...
+				[ S2Bx_unc(1)    S2Bx_unc(2)    S2Bx_unc(3) ]
+				[ S2By_unc(1)    S2By_unc(2)    S2By_unc(3) ]
+				[ Bu_sdcs_unc(1) Bu_sdcs_unc(2) Bu_sdcs_unc(3) ] ];
 
 		% Method 3 ________________________________________________________________
 		otherwise
-			disp 'rotation method not implemented yet'
+			disp 'Specified rotation method not implemented yet.'
 			keyboard
 	end % switch
-	BPP2SDCS = SDCS2BPP';
+	BPP2SDCS       = SDCS2BPP';
+	BPP2SDCS_unc   = SDCS2BPP_unc';
+	BPP2SDCS_frunc = SDCS2BPP_frunc';
 
 	% B_bpp = SDCS2BPP * B_sdcs; % V&V
 	% OR
@@ -227,11 +284,11 @@ function [ ...
 
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
-			% gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) (|q| is positive here.)
-			gyroFrequency     = q_over_mass_e_nT2T * B2n; % (SI) (|q| is positive here.)
-			gyroFrequency_unc = q_over_mass_e_nT2T * B2n_unc;
-			gyroPeriod        = (twoPi / gyroFrequency);   % (SI) The result is usually on the order of a few ms
-			gyroPeriod_frunc  = twoPi * gyroFrequency_unc / gyroFrequency;
+			% gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) |q| is positive here.
+			gyroFrequency     = q_over_mass_e_nT2T * B2n;     % (SI) |q| is positive here.
+			gyroFrequency_unc = q_over_mass_e_nT2T * B2n_unc; % Rule 5.
+			gyroPeriod        = twoPi / gyroFrequency;        % (SI) Usually on the order of a few ms
+			gyroPeriod_frunc  = twoPi * gyroFrequency_unc / gyroFrequency; % Rule1, 5.
 			gyroPeriod_unc    = gyroPeriod_frunc * gyroPeriod;
 % 			disp 'gyroFreq gyroPeriod stats'
 % 			[ gyroFrequency gyroFrequency_unc gyroPeriod gyroPeriod_unc ] % V&V
@@ -246,9 +303,10 @@ function [ ...
 			% the virtual source S* is the negative of the real drift step; S* is an imaginary point
 			S_star_bpp  = [ GrubbsBeamInterceptMean; 0.0 ];
 			d_bpp       = -S_star_bpp; % Note the minus sign
-			d_SD_bpp    = [GrubbsBeamInterceptSD; 0.0];
-			d_SDOM_bpp  = [GrubbsBeamInterceptSDOM; 0.0];
-			d_bpp_frunc = d_SDOM_bpp ./ d_bpp;
+			d_SD_bpp    = [GrubbsBeamInterceptSD; 0.0];   % > non-neg by def
+			d_SDOM_bpp  = [GrubbsBeamInterceptSDOM; 0.0]; % ditto
+			d_bpp_frunc = d_SDOM_bpp(1:2) ./ d_bpp(1:2); % Rule 1, 7.
+			d_bpp_frunc (3) = 0.0;
 			% Compute uncertainty (confidence interval CI) = z_score * SDOM
 			d_CI_bpp = z_score * d_SDOM_bpp;
 
@@ -256,15 +314,16 @@ function [ ...
 % 			disp 'd stats'
 % 			[ d_bpp d_SD_bpp d_SDOM_bpp d_CI_bpp ] % V&V
 
-			v_bpp = d_bpp / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
-			v_bpp_frunc = (d_bpp_frunc + gyroPeriod_frunc) * 1.0e-3;
-			v_bpp_unc = v_bpp_frunc .* v_bpp; % V&V
+			gyroPeriod_1e3 = gyroPeriod * 1.0e3;
+			v_bpp = d_bpp / gyroPeriod_1e3; % m/s ~> km/s, per MMS unit standards
+			v_bpp_frunc = (d_bpp_frunc(:) + gyroPeriod_frunc) * 1.0e-3; % Rule 3, 5.
+% 			v_bpp_unc = v_bpp_frunc .* v_bpp; % V&V
 % 			disp 'v stats'
-% 			[ v_bpp v_bpp_frunc v_bpp_unc ] % V&V
+% 			[ v_bpp v_bpp_frunc ] % V&V
 
 % 			strB_time = datestr (spdftt2000todatenum (B_t2k), 'HH:MM:ss'); % V&V
 % 			disp (sprintf('84%% d_BPP confidence intervals %9s (x, y)= ( %+6.2f, %+6.2f )', ...
-% 				strB_time, d_CI_bpp(1), d_CI_bpp(2)))  % V&V
+% 				strB_time, d_CI_bpp(1), d_CI_bpp(2))) % V&V
 
 			% B_bpp is in nT, and all these calcs are in SI
 			% v_sdcs above is in /// km/s ///
@@ -275,17 +334,27 @@ function [ ...
 			% B_bpp = (0, 0, Bz=B2n); v_bpp = (vx, vy, 0)
 			% cross (B_bpp, v_bpp) ~> B2n * [ -v_bpp(2); v_bpp(1); 0.0 ]
 			E_bpp       = [ -v_bpp(2); v_bpp(1); 0.0 ] * (B2n * 1.0e-3);
-			E_bpp_frunc = [ v_bpp_frunc(1)+B2n_frunc; v_bpp_frunc(2)+B2n_frunc; 0.0 ] * 1.0e-3;
+			E_bpp_frunc = [ v_bpp_frunc(2)+B2n_frunc; v_bpp_frunc(1)+B2n_frunc; 0.0 ] * 1.0e-3; % Rule 3, 5.
 			E_bpp_unc   = E_bpp_frunc .* E_bpp;
+
 % 			disp 'E stats' % V&V
 % 			[ E_bpp E_bpp_frunc E_bpp_unc ] % V&V
 
-			d_sdcs     = BPP2SDCS * d_bpp;
+			% !!! See important help note in the edi_drift_step_app_rot_mat_unc header.
+			% It explains why SDCS2BPP replaces BPP2SDCS.
+			% d_sdcs = BPP2SDCS * d_bpp;
+			[ d_sdcs, d_sdcs_unc ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, d_bpp, SDCS2BPP_frunc, d_bpp_frunc);
+
 			d_SD_sdcs  = abs (BPP2SDCS * d_SD_bpp);
 			d_CI_sdcs  = abs (BPP2SDCS * d_CI_bpp);
-			v_sdcs     = d_sdcs / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
-			E_sdcs     = BPP2SDCS * E_bpp;
-			E_sdcs_unc = abs (BPP2SDCS * E_bpp_unc);
+
+			v_sdcs = d_sdcs / gyroPeriod_1e3; % m/s ~> km/s, per MMS unit standards
+			v_sdcs_frunc = (d_sdcs_unc ./ d_sdcs) + gyroPeriod_frunc;
+			v_sdcs_unc = v_sdcs_frunc .* v_sdcs;
+
+			% E_sdcs     = BPP2SDCS * E_bpp;
+			% E_sdcs_unc = abs (BPP2SDCS * E_bpp_unc)
+			[ E_sdcs, E_sdcs_unc ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, E_bpp, SDCS2BPP_frunc, E_bpp_frunc);
 
 % keyboard
 
