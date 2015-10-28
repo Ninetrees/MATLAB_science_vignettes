@@ -1,19 +1,22 @@
 function [ ...
 		d_bpp, ...
-		d_SD_bpp, ...
-		d_CI_bpp, ...
+		d_bpp_SD, ...
+		d_bpp_CI, ...
 		d_sdcs, ...
-		d_SD_sdcs, ...
-		d_CI_sdcs, ...
+		d_sdcs_SD, ...
+		d_sdcs_CI, ...
 		d_quality, ...
 		v_sdcs, ...
+		E_bpp, ...
+		E_bpp_unc, ...
 		E_sdcs, ...
-		E_sdcs_unc ...
+		E_sdcs_unc, ...
+		E_sdcsr, E_sdcs_uncr ...
 	] = edi_drift_step ( ...
 		obsID, ...
 		B_t2k, ...
 		B_sdcs, ...
-		B_SD_sdcs, ...
+		B_sdcs_SD, ...
 		gd_virtual_sdcs, ...
 		gd_fv_sdcs, ...
 		gd_ID ...
@@ -34,12 +37,13 @@ function [ ...
 	% Rule 6: Unc in functions of one variable: q_unc = |dq/dx| * x_unc.
 	% Rule 7: Use SDOM where available. [1] Sect. 4.4.
 	% Rule 8: Convert _frunc to _unc: q_unc = |q| * q_frunc
+	% Rule 9: Use unc, not frunc, where d~>v is concerned. See v2.2 history notes.
 	% ***Because the goal is to use fewer beams per set, no quadrature is used.
 
 	% Calc uncertainty for B2n. These lines are all about the UNCERTAINTY, NOT B2n.
 	% Here each Bx|y|z is squared, then those squares are summed, then sqrt (sum).
 	% The uncertainty: Rule 1, 4, 2, 4.
-	B_frunc = abs (B_SD_sdcs ./ B_sdcs); % Rule 1
+	B_frunc = abs (B_sdcs_SD ./ B_sdcs); % Rule 1
 	% Techincally we need || here for B?_unc, but we are squaring them below, so could ignore.
 	Bx_unc  = abs ((2.0 * B_frunc (1)) * B_sdcs (1)); % Rule 4. Bx|y|z is raised to a power.
 	By_unc  = abs (2.0 * B_frunc (2) * B_sdcs (2)); % We need unc, not frunc, for Rule 2
@@ -48,7 +52,7 @@ function [ ...
 	B2n_frunc = 0.5 * ((Bx_unc + By_unc + Bz_unc) / B2n); % Rule 2, 1, 4
 	B2n_unc = B2n_frunc * B2n; % Total uncertainty in B2n
 % 	disp 'B stats' % V&V
-% 	[ B_sdcs B_SD_sdcs [B2n_unc;0;0] ] % V&V
+% 	[ B_sdcs B_sdcs_SD [B2n_unc;0;0] ] % V&V
 
 	Bu_sdcs       = B_sdcs / B2n; % Bu has uncertainty
 	Bu_sdcs_frunc = B_frunc + B2n_frunc; % 3D
@@ -195,7 +199,7 @@ function [ ...
 			end
 		end
 	end
-% keyboard
+
 	% Find the S* in BPP, using BPP FV convergence
 	% preAlloc beamIntercepts based on nBeams: (nBeams - 1) * nBeams / 2
 	% -~-~-~-~-~-~-~-~-~
@@ -205,7 +209,7 @@ function [ ...
 	interceptWeights = zeros (1, nBeamIntercepts, 'double');
 
 	d_bpp    = [NaN; NaN; NaN];
-	d_CI_bpp = [NaN; NaN; NaN];
+	d_bpp_CI = [NaN; NaN; NaN];
 	v_sdcs   = [NaN; NaN; NaN];
 	E_sdcs   = [NaN; NaN; NaN];
 
@@ -268,7 +272,7 @@ function [ ...
 			[ GrubbsBeamInterceptMean(2,1), GrubbsBeamInterceptSD(2,1), GrubbsBeamIntercepts ] = ...
 				edi_drift_step_Grubbs (beamIntercepts (2,:), interceptWeights, edi_stats_alpha);
 			iby = find (isnan (GrubbsBeamIntercepts));
-% keyboard
+
 			iIntersectXYOutliers = union (ibx, iby);
 			GrubbsBeamIntercepts = beamIntercepts;
 			GrubbsBeamIntercepts (:, iIntersectXYOutliers) = [];
@@ -280,7 +284,6 @@ function [ ...
 
 % 			disp ( sprintf ('nGrubbsBeamIntercepts %4d : GrubbsInterceptMean, uncertainty: (%+7.3f, %+7.3f) (%+7.3f, %+7.3f)', ...
 % 				nGrubbsBeamIntercepts, GrubbsBeamInterceptMean, z_score*GrubbsBeamInterceptSDOM) ) % debug
-% keyboard
 
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
@@ -303,60 +306,91 @@ function [ ...
 			% the virtual source S* is the negative of the real drift step; S* is an imaginary point
 			S_star_bpp  = [ GrubbsBeamInterceptMean; 0.0 ];
 			d_bpp       = -S_star_bpp; % Note the minus sign
-			d_SD_bpp    = [GrubbsBeamInterceptSD; 0.0];   % > non-neg by def
+			d_bpp_SD    = [GrubbsBeamInterceptSD; 0.0];   % > non-neg by def
 			d_SDOM_bpp  = [GrubbsBeamInterceptSDOM; 0.0]; % ditto
-			d_bpp_frunc = d_SDOM_bpp(1:2) ./ d_bpp(1:2); % Rule 1, 7.
-			d_bpp_frunc (3) = 0.0;
 			% Compute uncertainty (confidence interval CI) = z_score * SDOM
-			d_CI_bpp = z_score * d_SDOM_bpp;
+			d_bpp_CI = z_score * d_SDOM_bpp;
 
 			% d_bpp is assumed to be zero in BPPz, so the uncertainty is just in x,y
-% 			disp 'd stats'
-% 			[ d_bpp d_SD_bpp d_SDOM_bpp d_CI_bpp ] % V&V
 
-			gyroPeriod_1e3 = gyroPeriod * 1.0e3;
-			v_bpp = d_bpp / gyroPeriod_1e3; % m/s ~> km/s, per MMS unit standards
-			v_bpp_frunc = (d_bpp_frunc(:) + gyroPeriod_frunc) * 1.0e-3; % Rule 3, 5.
-% 			v_bpp_unc = v_bpp_frunc .* v_bpp; % V&V
-% 			disp 'v stats'
-% 			[ v_bpp v_bpp_frunc ] % V&V
+			v_bpp     = d_bpp / gyroPeriod; % m/s here
+			v_bpp_unc = abs ([ ...
+				d_bpp(1)*gyroPeriod_unc + d_bpp_SD(1)*gyroPeriod;
+				d_bpp(2)*gyroPeriod_unc + d_bpp_SD(2)*gyroPeriod;
+				0.0;
+			]); % Rule 3, 5, 9. unc*unc is << 1, ignore
+
+			% After d~>v, grid origin is still a concern, as all velocities span the real numbers.
 
 % 			strB_time = datestr (spdftt2000todatenum (B_t2k), 'HH:MM:ss'); % V&V
 % 			disp (sprintf('84%% d_BPP confidence intervals %9s (x, y)= ( %+6.2f, %+6.2f )', ...
-% 				strB_time, d_CI_bpp(1), d_CI_bpp(2))) % V&V
+% 				strB_time, d_bpp_CI(1), d_bpp_CI(2))) % V&V
+
+			% vE = v in direction of E; T = gyroPeriod
+			% ( vE = d/T ) = ExB/|B|^2 ~> d / T * |B|^2 = ExB --- Pacshmann, 1998, 2001, EDI for Cluster
+			% Cross from the left with B: B x [] = BxExB
+			% where BxExB = E(B dot B) - B(E dot B)
+			% The second term is zero because we are assuming E is perpendicular to B.
+			% B x [ d/T * |B|^2 = E * |B|^2 ~> E = B x d/T = B x v
 
 			% B_bpp is in nT, and all these calcs are in SI
-			% v_sdcs above is in /// km/s ///
-			% convert nT -> T, km/s -> m/s, V/m -> mV/m : 1.0e-9 * 1.0e3 * 1.0e3 ~> 1.0e-3
+			% v_bpp above is in / m/s /
+			% convert nT -> T, V/m -> mV/m : 1.0e-9 * 1.0e3 ~> 1.0e-6
+
 			% This should be E = B x v = B x d/t, not the virtual source S*.
 			% See relevant publications on Cluster drift step
 			% and 'EDI_beams_and_virtual_source_demo_0101.m'.
 			% B_bpp = (0, 0, Bz=B2n); v_bpp = (vx, vy, 0)
 			% cross (B_bpp, v_bpp) ~> B2n * [ -v_bpp(2); v_bpp(1); 0.0 ]
-			E_bpp       = [ -v_bpp(2); v_bpp(1); 0.0 ] * (B2n * 1.0e-3);
-			E_bpp_frunc = [ v_bpp_frunc(2)+B2n_frunc; v_bpp_frunc(1)+B2n_frunc; 0.0 ] * 1.0e-3; % Rule 3, 5.
-			E_bpp_unc   = E_bpp_frunc .* E_bpp;
 
-% 			disp 'E stats' % V&V
-% 			[ E_bpp E_bpp_frunc E_bpp_unc ] % V&V
+			E_bpp = [ -v_bpp(2); v_bpp(1); 0.0 ] * (B2n * 1.0e-6); % See convert note above
+
+			v_bpp_abs = abs (v_bpp); % so that there are no neg values for next step
+			E_bpp_unc = abs ([ ...
+				(v_bpp_abs(2)*B2n_unc + v_bpp_unc(2)*B2n); % + v_bpp_unc(2)*B2n_unc is << 1, ignore
+				(v_bpp_abs(1)+B2n_unc + v_bpp_unc(1)*B2n);
+				0.0 ] * 1.0e-6); % Rule 3, 9. See v2.2 history notes.
+
+			v_bpp     = v_bpp * 1.0e-3; % NOW, not earlier... m/s ~> km/s, per MMS unit standards
+			v_bpp_unc = v_bpp_unc * 1.0e-3;
 
 			% !!! See important help note in the edi_drift_step_app_rot_mat_unc header.
 			% It explains why SDCS2BPP replaces BPP2SDCS.
-			% d_sdcs = BPP2SDCS * d_bpp;
-			[ d_sdcs, d_sdcs_unc ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, d_bpp, SDCS2BPP_frunc, d_bpp_frunc);
 
-			d_SD_sdcs  = abs (BPP2SDCS * d_SD_bpp);
-			d_CI_sdcs  = abs (BPP2SDCS * d_CI_bpp);
+			d_sdcs    = BPP2SDCS * d_bpp;
+			d_sdcs_SD = abs (BPP2SDCS * d_bpp_SD);
+			d_sdcs_CI = abs (BPP2SDCS * d_bpp_CI);
+			[ d_sdcsr, d_sdcs_uncr ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, d_bpp, SDCS2BPP_unc, d_bpp_SD);
 
-			v_sdcs = d_sdcs / gyroPeriod_1e3; % m/s ~> km/s, per MMS unit standards
-			v_sdcs_frunc = (d_sdcs_unc ./ d_sdcs) + gyroPeriod_frunc;
-			v_sdcs_unc = v_sdcs_frunc .* v_sdcs;
+			v_sdcs     = d_sdcs / gyroPeriod * 1.0e-3; % m/s ~> km/s, per MMS unit standards
+			d_sdcs_abs = abs (d_sdcs);
+			v_sdcs_unc = abs ([ ...
+				d_sdcs_abs(1)*gyroPeriod_unc + d_sdcs_SD(1)*gyroPeriod;
+				d_sdcs_abs(2)*gyroPeriod_unc + d_sdcs_SD(2)*gyroPeriod;
+				d_sdcs_abs(3)*gyroPeriod_unc + d_sdcs_SD(3)*gyroPeriod;
+			]) * 1.0e-3; % Rule 3, 5, 9.  % unc*unc is << 1, ignore
 
-			% E_sdcs     = BPP2SDCS * E_bpp;
-			% E_sdcs_unc = abs (BPP2SDCS * E_bpp_unc)
-			[ E_sdcs, E_sdcs_unc ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, E_bpp, SDCS2BPP_frunc, E_bpp_frunc);
+			E_sdcs       = BPP2SDCS * E_bpp;
+			E_sdcs_unc   = abs (BPP2SDCS * E_bpp_unc);
+			E_sdcs_frunc = abs (E_sdcs_unc ./ E_sdcs);
 
-% keyboard
+			% E_bpp_frunc is really NOT VALID, so this is just a placeholder for now.
+			E_bpp_frunc = E_bpp_unc ./ E_bpp;
+			[ E_sdcsr, E_sdcs_uncr ] = edi_drift_step_app_rot_mat_unc (SDCS2BPP, E_bpp, SDCS2BPP_frunc, E_bpp_frunc);
+
+% 			disp          '[ d_bpp d_bpp_SD d_SDOM_bpp d_bpp_CI ]'
+% 			d_bpp_stats  = [ d_bpp d_bpp_SD d_SDOM_bpp d_bpp_CI ] % V&V
+% 			disp          '[ d_sdcs d_sdcs_SD d_sdcs_CI ]'
+% 			d_sdcs_stats = [ d_sdcs d_sdcs_SD d_sdcs_CI ] % V&V
+% 
+% 			disp          '[ v_bpp v_bpp_unc v_sdcs v_sdcs_unc ]'
+% 			v_bpp_stats  = [ v_bpp v_bpp_unc v_sdcs v_sdcs_unc ] % V&V
+% 
+% 			disp          '[ E_bpp E_bpp_unc ]'
+% 			E_bpp_stats  = [ E_bpp E_bpp_unc ] % V&V
+% 			disp          '[ E_sdcs E_sdcs_unc E_sdcsr E_sdcs_uncr ]'
+% 			E_sdcs_stats = [ E_sdcs E_sdcs_unc E_sdcsr E_sdcs_uncr ] % V&V
+% 			keyboard
 
 			d_qualityWeight = interceptWeightsSum / nGrubbsBeamIntercepts;
 			if d_qualityWeight > sinx_wt_Q_xovr(2)
@@ -369,7 +403,10 @@ function [ ...
 				end
 			end
 			% -~-~-~-~-~-~-~-~-~
-			if plot_beams
+			d_CI_bpp_gt_0p5 = (norm (d_bpp_CI, 2) > 0.5);
+			% set pause_each_plot, but ~plot_beams, if you want to see just the poor stat cases
+% 			if plot_beams | d_CI_bpp_gt_0p5 % don't short circuit
+			if plot_beams % don't short circuit
 				edi_drift_step_plot ( ...
 					obsID, ...
 					B_t2k, ...
@@ -378,11 +415,10 @@ function [ ...
 					gd_virtual_bpp, ...
 					gd_fv_bpp, ...
 					SDCS2BPP, ...
-					S_star_bpp, d_SDOM_bpp, d_CI_bpp, ... % d_SDOM_bpp == S_star_SDOM_bpp
+					S_star_bpp, d_SDOM_bpp, d_bpp_CI, ... % d_SDOM_bpp == S_star_SDOM_bpp
 					GrubbsBeamIntercepts, ...   % for plotting dot on counted intersections
 					P0, z_score, d_quality);
 			end
-% 			keyboard
 		end % nansum (interceptWeights) > 0.0
 	end %  nBeams > 1
 end

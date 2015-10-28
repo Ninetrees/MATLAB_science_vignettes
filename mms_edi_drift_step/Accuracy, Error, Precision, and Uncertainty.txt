@@ -64,6 +64,7 @@ pfu = |n| * fu.
 ~~~~~~~~~~~~~~~~~~~
 So far, we have rules for calculating the uncertainties of sums|differences and
 products|quotients, with the consideration of quadrature sums applying to both.
+See IMPORTANT exception note [#1] below.
 
 ~~~~~~~~~~~~~~~~~~~
 Combining MMS B-field data and EDI drift step results to estimate the E-field,
@@ -72,7 +73,6 @@ gyroFrequency (||B||) ~> gyroPeriod
 mean (BC) ~> d (BC) ~> v_drift = d / gyroPeriod
 E_drift = cross (B, v_drift)
 At each step, uncertainies must be accounted for.
-
 
 ~~~~~~~~~~~~~~~~~~~
 Regarding the use of the standard deviation (here, SD) and the standard deviation 
@@ -132,6 +132,22 @@ bounds are based on the confidence level sought (for example, 84%), and the
 relation twixt that level, the SDOM of the distribution, the percentile critical 
 Z-value (z-score), and the normal distribution. Outliers are tossed using Grubbs 
 test for outliers.
+
+~~~~~~~~~~~~~~~~~~~
+[#1] There is an important distinction to be made when working with nD vectors that
+span the real numbers. Much of the statistical math referenced here assumes that
+data is always > 0, and that the data spans a relevant range. For example, the
+ages of people in a room will be greater than zero, and it is reasonable to ask
+what the SD is of the ages. S*, on the other hand, can be near zero on some axis,
+and yet have a SD that spans zero. Moving a cluster of data points closer to zero
+will change the mean closer to zero, but will not alter the SD. Therefore,
+calculating and using the fractional uncertainty in this instance will not provide
+a useful value for subsequent calculations. In that case, a simple example shows
+the math:
+length: l = x + SDx
+width:  w = y + SDy
+area:   a = l* w = (x + SDx) * (y + SDy) = xy + x*SDy + y*SDx + SDx*SDy,
+where the uncertainty is x*SDy + y*SDx + SDx*SDy, and will be ignored as << 1.
 
 ~~~~~~~~~~~~~~~~~~~
 Glossary
