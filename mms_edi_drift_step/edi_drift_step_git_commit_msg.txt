@@ -1,6 +1,17 @@
 edi_drift_step v02.02.00
-~ Modify save|load matfile name convention
-~ Use relativistic speeds and electron mass in gyro period calculations
-  Update myLibScienceConstants. See 'Gyrotime from B calculations * M15.pdf'.
-~ Recalculate gyroPeriod and uncertainties.
+~ edi_drift_step_app_rot_mat_unc: replace sum() with element-wise addition.
+~ Prepare uncertainty plots with log y for comparison.
+~ Add d_CI_bpp_gt_0p5 logic to plot poor stat cases
+~ Change unc calcs using the drift step d, from frunc to unc,
+  because there is a scaling problem related to the drift step grid origin
+  as the center of the obs. Consider a SD of 0.1 @ 1 m and @ 0.1 m, and see
+  the effect on frunc; frunc blows up as d ~> 0.0.
+  The plain math is, for some q = x*y, the worst unc for q is
+  x*SDy + y*SDx + SDx*SDy.
+  See updated 'Accuracy, Error, Precision, and Uncertainty.txt'.
+  Fruncs should not be used for any quantity that spans the real numbers,
+  because fractional values don't make sense for values that approach zero
+  from + or -. Speed, for example, can use frunc, but velocity should not.
+~ Update EDI_beams_and_virtual_source_demo_0200.m
+  Move and rotate observatory based on gyroPeriod, spinPeriod, and obs speed
 See edi_drift_step_wrapper.m

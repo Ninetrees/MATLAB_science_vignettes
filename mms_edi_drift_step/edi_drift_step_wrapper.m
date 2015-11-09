@@ -65,12 +65,6 @@
 % Plots that prompt questions:
 %
 % History:
-% 2015-11-09 ~ v02.03.00:
-% ~ Modify save|load matfile name convention
-% ~ Use relativistic speeds and electron mass in gyro period calculations
-%   Update myLibScienceConstants. See 'Gyrotime from B calculations * M15.pdf'.
-% ~ Recalculate gyroPeriod and uncertainties.
-%
 % 2015-10-28 ~ v02.02.00:
 % ~ edi_drift_step_app_rot_mat_unc: replace sum() with element-wise addition.
 % ~ Prepare uncertainty plots with log y for comparison.
@@ -186,7 +180,7 @@ format short g    % +, bank, hex, long, rat, short, short g, short eng
 myLibAppConstants % custom colors; set default axis colors
 myLibScienceConstants
 
-global dotVersion;        dotVersion        = 'v2.03.00';
+global dotVersion;        dotVersion        = 'v2.02.00';
 global pause_each_plot;   pause_each_plot   = true; % Plots are not visible if they are not paused
 global plot_B_frunc;      plot_B_frunc      = false; % B fractional uncertainty
 global plot_beams;        plot_beams        = false;
@@ -208,12 +202,11 @@ EDI_presentation_beam_plot_style.Resolution = '600';
 
 UseFileOpenGUI = false; % true false
 if ~UseFileOpenGUI
-% 	mms_ql_dataPath = 'D:\MMS\events\20150919_0909';
-% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_ql_efield_20150919_v0.3.0.cdf';
+	mms_ql_dataPath = 'D:\MMS\events\20150919_0909';
+	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_ql_efield_20150919_v0.3.0.cdf';
 
-	mms_ql_dataPath = 'D:\MMS\mms_edi_cdf';
+% 	mms_ql_dataPath = 'D:\MMS\MATLAB\MEEdrift\mms_edi_cdf';
 
-% 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms1_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
@@ -222,9 +215,7 @@ if ~UseFileOpenGUI
 % 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms2_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
-% 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_ql_efield_20150819_v0.2.3.cdf'; % *** ql
 % 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150819_v0.2.3.cdf';
-	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150819_v0.2.3b.cdf'; % *** sl, b version
 % 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150820_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150821_v0.2.3.cdf';
 % 	mms_ql_EDI_BdvE_dataFile = 'mms3_edi_srvy_sl_efield_20150822_v0.2.3.cdf';
@@ -234,10 +225,10 @@ if ~UseFileOpenGUI
 
 	mms_ql_EDI_BdvE_data = [mms_ql_dataPath cFileSep mms_ql_EDI_BdvE_dataFile];
 
-% 	mms_ql_dataPath = 'D:\MMS\events\20150919_0909';
-% 	mms_ql_EDP_dataFile = 'mms1_edp_brst_ql_dce_20150919090814_v0.2.0.cdf';
+	mms_ql_dataPath = 'D:\MMS\events\20150919_0909';
+	mms_ql_EDP_dataFile = 'mms1_edp_brst_ql_dce_20150919090814_v0.2.0';
 
-	mms_ql_dataPath = 'D:\MMS\mms_edp_cdf';
+% 	mms_ql_dataPath = 'D:\MMS\MATLAB\MEEdrift\mms_edp_cdf';
 
 % 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms1_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
@@ -247,7 +238,7 @@ if ~UseFileOpenGUI
 % 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms2_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
-	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
+% 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150819000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150820000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150821000000_v0.2.0.cdf';
 % 	mms_ql_EDP_dataFile = 'mms3_edp_slow_ql_dce_20150822000000_v0.2.0.cdf';
@@ -260,15 +251,11 @@ end
 
 edi_drift_step_read_ql__EDI__B__EDP_data
 
-strEventTime = ''; % or '_105000_105500', for example, with leading '_'
-mat_file_name = [ ...
-	'edi_drift_step_' dotVersion ...
-	'_mms' obsID ...
-	mms_ql_EDI_BdvE_dataFile(24:32) ...
-	strEventTime '_unprocessed_b.mat' ]
+% save edi_drift_step_20150819_105000_105500_unprocessed.mat % see load above
+% load edi_drift_step_20150819_105000_105500_unprocessed.mat
 
-save (mat_file_name);
-% load (mat_file_name);
+% save edi_drift_step_2015091_90908_unprocessed.mat % see load above
+load edi_drift_step_2015091_90908_unprocessed.mat
 
 nB_recs    = length (BdvE_dn);
 d_bpp      = zeros (3, nB_recs);
@@ -348,14 +335,8 @@ for B_recnum = 1: nB_recs
 	fprintf (' \n'); % bump command line
 end % for B_recnum = 1: ...
 
-mat_file_name = [ ...
-	'edi_drift_step_' dotVersion ...
-	'_mms' obsID ...
-	mms_ql_EDI_BdvE_dataFile(24:32) ...
-	strEventTime '_processed_b.mat' ]
-
-save (mat_file_name);
-% load (mat_file_name);
+% save edi_drift_step_20150819_105000_105500_processed.mat % load for plotting only
+% save edi_drift_step_2015091_90908_processed.mat % load for plotting only
 
 % these next plots are debugging plots, and are meant to be used manually
 % comment them out to run in usual mode
@@ -365,16 +346,9 @@ bDateStr = datestr (BdvE_dn (1), ' yyyymmdd');
 
 %{
 
-plot (BdvE_dn, edi_B_sdcs);
+plot (BdvE_dn, abs (edi_B_std_sdcs ./ edi_B_sdcs)); % plot semilogy !!! change extension: 0. 1. log. !!!
 strTitle = [ ...
 	'10. EDI drift step ', dotVersion, ...
-	' MMS', obsID, ...
-	bDateStr, ...
-	' EDI B'];
-
-plot (BdvE_dn, abs (edi_B_std_sdcs ./ edi_B_sdcs));
-strTitle = [ ...
-	'11. EDI drift step ', dotVersion, ...
 	' MMS', obsID, ...
 	bDateStr, ...
 	' EDI B frunc'];
@@ -511,7 +485,6 @@ strTitle = [ ...
 	bDateStr, ...
 	' EDI E BPP, SDCS unc ratio'];
 
-% ~-~-~-~-~-~-~-
 xlabel (sprintf ( '%s', datestr((BdvE_dn(1)), 'yyyy-mm-dd') ))
 plotDateMin = double (min(BdvE_dn));
 plotDateMax = double (max(BdvE_dn));
@@ -519,14 +492,13 @@ plotDateMax = double (max(BdvE_dn));
 % plotDateMax = datenum ('2015-08-19 09:40:00');
 xlim ( [ plotDateMin plotDateMax ] )
 % ylim ( [ 0.0 1.0 ] ) % comment this out for log y plots !!! change extension: 0. 1. log. ... !!!
-set (gca, 'XTick', [ plotDateMin: datenum_10min: plotDateMax]) % datenum_1min datenum_10min datenum_1hr
+set (gca, 'XTick', [ plotDateMin: datenum_1hr: plotDateMax])
 datetick ('x', 'HH:MM', 'keeplimits', 'keepticks')
 title (strTitle)
-legend ('x', 'y', 'z') % for all but plot 79
-plotFilename = [ strTitle, '.6c.ql.0.2.3.png' ]; % reset '.nn. for each release
+% legend ('x', 'y', 'z')
+plotFilename = [ strTitle, '.5.png' ];
 saveas (gcf, plotFilename, 'png');
 % hgexport (gcf, plotFilename, EDI_presentation_beam_plot_style);
-% ~-~-~-~-~-~-~-
 %}
 
 % End of manual debugging plots - comment them out to run in usual mode
