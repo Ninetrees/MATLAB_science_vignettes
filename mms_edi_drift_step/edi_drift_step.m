@@ -26,7 +26,6 @@ function [ ...
 	global plot_beams rot_mat_unc rotation_method sinx_wt_Q_xovr use_v10502
 % 	disp 'entering edi_drift_step' % debug
 
-	B2n  = norm (B_sdcs, 2);
 	% The first step in propagating uncertainty to the E-field starts with B2n.
 	% The 2norm is the sqrt of the sum of the squares.
 	% Rule 1: Note use of fractional uncertainties.
@@ -34,28 +33,31 @@ function [ ...
 	% Rule 3: Uncertainties for products: sum fractional uncertainties (_frunc).
 	% Rule 4: If q = x^n, then q_frunc = |n| * x_frunc.
 	% Rule 5: If q = Cx, where C has no uncertainty, q_unc = |C| * x_unc (NOT _frunc).
+	%         Relative uncertainty can be used, but is *not* multiplied by the constant.
 	% Rule 6: Unc in functions of one variable: q_unc = |dq/dx| * x_unc.
 	% Rule 7: Use SDOM where available. [1] Sect. 4.4.
 	% Rule 8: Convert _frunc to _unc: q_unc = |q| * q_frunc
 	% Rule 9: Use unc, not frunc, where d~>v is concerned. See v2.2 history notes.
 	% ***Because the goal is to use fewer beams per set, no quadrature is used.
 
+	B2n  = norm (B_sdcs, 2); % ||x|| is sqrt (x1^2 + x2^2 + x3^2)
 	% Calc uncertainty for B2n. These lines are all about the UNCERTAINTY, NOT B2n.
 	% Here each Bx|y|z is squared, then those squares are summed, then sqrt (sum).
 	% The uncertainty: Rule 1, 4, 2, 4.
-	B_frunc = abs (B_sdcs_SD ./ B_sdcs); % Rule 1
+	B_sdcs_frunc = abs (B_sdcs_SD ./ B_sdcs); % Rule 1
 	% Techincally we need || here for B?_unc, but we are squaring them below, so could ignore.
-	Bx_unc  = abs ((2.0 * B_frunc (1)) * B_sdcs (1)); % Rule 4. Bx|y|z is raised to a power.
-	By_unc  = abs (2.0 * B_frunc (2) * B_sdcs (2)); % We need unc, not frunc, for Rule 2
-	Bz_unc  = abs (2.0 * B_frunc (3) * B_sdcs (3));
-	% It is tempting to combine the next two into 1 line, but we need B2n_frunc later.
-	B2n_frunc = 0.5 * ((Bx_unc + By_unc + Bz_unc) / B2n); % Rule 2, 1, 4
+	B2nx_unc  = abs ((2.0 * B_sdcs_frunc (1)) * B_sdcs (1)); % Rule 4. Bx|y|z is raised to a power.
+	B2ny_unc  = abs ((2.0 * B_sdcs_frunc (2)) * B_sdcs (2)); % We need unc, not frunc, for Rule 2
+	B2nz_unc  = abs ((2.0 * B_sdcs_frunc (3)) * B_sdcs (3)); % (()) added for clarity; not needed
+
+	% It is tempting to combine the next two lines into 1 line, but we need B2n_frunc later.
+	B2n_frunc = 0.5 * ((B2nx_unc + B2ny_unc + B2nz_unc) / B2n); % Rule 2, 1, 4
 	B2n_unc = B2n_frunc * B2n; % Total uncertainty in B2n
 % 	disp 'B stats' % V&V
 % 	[ B_sdcs B_sdcs_SD [B2n_unc;0;0] ] % V&V
 
 	Bu_sdcs       = B_sdcs / B2n; % Bu has uncertainty
-	Bu_sdcs_frunc = B_frunc + B2n_frunc; % 3D
+	Bu_sdcs_frunc = B_sdcs_frunc + B2n_frunc; % 3D
 	Bu_sdcs_unc   = abs (Bu_sdcs_frunc .* Bu_sdcs); % 3D
 
 	% We have not decided how to handle the uncertainty of the rotation matrix, 2015-10-01
@@ -288,13 +290,16 @@ function [ ...
 			% -~-~-~-~-~-~-~-~-~
 			% now we need the drift step...
 			% gyroFrequency = (q * B2n * nT2T) / mass_e; % (SI) |q| is positive here.
-			gyroFrequency     = q_over_mass_e_nT2T * B2n;     % (SI) |q| is positive here.
-			gyroFrequency_unc = q_over_mass_e_nT2T * B2n_unc; % Rule 5.
-			gyroPeriod        = twoPi / gyroFrequency;        % (SI) Usually on the order of a few ms
-			gyroPeriod_frunc  = twoPi * gyroFrequency_unc / gyroFrequency; % Rule1, 5.
-			gyroPeriod_unc    = gyroPeriod_frunc * gyroPeriod;
+			% gyroFrequency     = q_over_mass_e_nT2T * B2n;     % (SI) |q| is positive here.
+			% gyroFrequency_unc = q_over_mass_e_nT2T * B2n_unc; % Rule 5.
+			% gyroPeriod        = twoPi / gyroFrequency;        % (SI) Usually on the order of a few ms
+			gyroPeriod       = nT2sr_1keV / B2n; % seconds
+			gyroPeriod_frunc = B2n_frunc; % Rule 5.
+			gyroPeriod_unc   = gyroPeriod_frunc * gyroPeriod;
 % 			disp 'gyroFreq gyroPeriod stats'
-% 			[ gyroFrequency gyroFrequency_unc gyroPeriod gyroPeriod_unc ] % V&V
+% 			[ gyroFrequency gyroFrequency_unc gyroPeriod gyroPeriod_unc gyroPeriod_frunc ] % V&V
+% keyboard
+
 
 			% vE = v in direction of E; T = gyroPeriod
 			% ( vE = d/T ) = ExB/|B|^2 ~> d / T * |B|^2 = ExB --- Pacshmann, 1998, 2001, EDI for Cluster
